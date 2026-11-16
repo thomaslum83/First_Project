@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Kanban & Gantt Tracker</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --todo-bg: #f1f5f9;
+    --prog-bg: #eff6ff;
+    --done-bg: #f0fdf4;
+    --todo-badge: #475569;
+    --prog-badge: #2563eb;
+    --done-badge: #16a34a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  
+  /* Header */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 18px; }
+  .brand-badge { background: var(--primary); color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 13px; }
+  .nav-controls { display: flex; align-items: center; gap: 10px; }
+  
+  button { cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; transition: all 0.15s; }
+  button:hover { background: #f1f5f9; }
+  button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  button.primary:hover { background: var(--primary-hover); }
+  button.active { background: #eff6ff; color: var(--primary); border-color: var(--primary); font-weight: 600; }
+  button.danger { color: #dc2626; border-color: #fecaca; }
+  button.danger:hover { background: #fef2f2; }
+
+  /* Main Container */
+  main { flex: 1; overflow: auto; padding: 24px; }
+  .hidden { display: none !important; }
+
+  /* Start Page / Dashboard */
+  .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .dashboard-header h1 { font-size: 22px; }
+  .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+  .project-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; display: flex; flex-direction: column; justify-content: space-between; }
+  .project-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+  .project-card h2 { font-size: 17px; margin-bottom: 8px; }
+  .project-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+  .progress-bar { height: 6px; background: #e2e8f0; border-radius: 99px; overflow: hidden; margin-bottom: 10px; }
+  .progress-fill { height: 100%; background: var(--done-badge); transition: width 0.3s; }
+  .card-stats { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
+
+  /* Kanban View */
+  .kanban-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; height: 100%; min-width: 900px; }
+  .kanban-col { background: var(--todo-bg); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; max-height: 100%; border: 1px solid var(--border); }
+  .kanban-col[data-status="In Progress"] { background: var(--prog-bg); }
+  .kanban-col[data-status="Done"] { background: var(--done-bg); }
+  .col-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid rgba(0,0,0,0.06); font-weight: 600; font-size: 14px; }
+  .col-count { background: rgba(0,0,0,0.08); padding: 2px 8px; border-radius: 99px; font-size: 12px; }
+  .task-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 100px; }
+  .task-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); cursor: grab; }
+  .task-card:active { cursor: grabbing; }
+  .task-cat { display: inline-block; font-size: 11px; font-weight: 600; color: var(--primary); background: #eff6ff; padding: 2px 7px; border-radius: 4px; margin-bottom: 6px; }
+  .task-title { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  .task-details { font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; }
+  .task-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #f1f5f9; }
+  .task-actions button { padding: 3px 8px; font-size: 11px; }
+
+  /* Gantt + Excel View */
+  .gantt-workspace { display: flex; height: 100%; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); overflow: hidden; }
+  .excel-pane { width: 58%; border-right: 2px solid #cbd5e1; overflow: auto; flex-shrink: 0; }
+  .timeline-pane { flex: 1; overflow: auto; position: relative; background: #ffffff; }
+  
+  table.excel-grid { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.excel-grid th { background: #f1f5f9; color: var(--text); font-weight: 600; text-align: left; padding: 0 8px; height: 38px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 5; white-space: nowrap; }
+  table.excel-grid td { border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; height: 36px; padding: 0 6px; white-space: nowrap; }
+  table.excel-grid tr:hover { background: #f8fafc; }
+  table.excel-grid input, table.excel-grid select { width: 100%; border: none; background: transparent; font-size: 12px; color: var(--text); outline: none; padding: 4px 2px; }
+  table.excel-grid input:focus, table.excel-grid select:focus { background: #eff6ff; border-radius: 3px; }
+  .dur-cell { text-align: center; font-weight: 600; color: var(--text-muted); background: #f8fafc; }
+
+  /* Gantt Timeline Canvas */
+  .timeline-header { display: flex; height: 38px; background: #f1f5f9; border-bottom: 1px solid #cbd5e1; position: sticky; top: 0; z-index: 4; }
+  .month-block { border-right: 1px solid #cbd5e1; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: var(--text); flex-shrink: 0; }
+  .timeline-body { position: relative; }
+  .timeline-row { height: 36px; border-bottom: 1px solid #f1f5f9; position: relative; display: flex; align-items: center; }
+  .gantt-bar { position: absolute; height: 20px; border-radius: 4px; background: var(--primary); color: #fff; font-size: 11px; display: flex; align-items: center; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 1px 2px rgba(0,0,0,0.15); z-index: 2; }
+  .gantt-bar.done { background: var(--done-badge); }
+  .gantt-bar.prog { background: #2563eb; }
+  .gantt-bar.todo { background: #64748b; }
+  svg.dep-layer { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 3; }
+
+  /* Modal */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); display: flex; align-items: center; justify-content: center; z-index: 50; }
+  .modal { background: var(--surface); border-radius: 10px; width: 440px; max-width: 95vw; padding: 22px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+  .modal h3 { margin-bottom: 16px; font-size: 17px; }
+  .form-group { margin-bottom: 12px; }
+  .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--text-muted); }
+  .form-group input, .form-group select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="brand-badge">PM Suite</span>
+    <span id="headerTitle">Project Dashboard</span>
+  </div>
+  <div class="nav-controls" id="projectControls" class="hidden">
+    <button onclick="showDashboard()">← All Projects</button>
+    <button id="btnKanban" class="active" onclick="switchView('kanban')">Kanban Board</button>
+    <button id="btnGantt" onclick="switchView('gantt')">Gantt + Excel</button>
+    <button class="primary" onclick="openTaskModal()">+ Add Task</button>
+    <button onclick="resetData()" title="Reset to default projects">Reset Data</button>
+  </div>
+  <div class="nav-controls" id="dashboardControls">
+    <button class="primary" onclick="createNewProject()">+ New Project</button>
+  </div>
+</header>
+
+<main>
+  <!-- Start Page: Project Dashboard -->
+  <section id="dashboardView">
+    <div class="dashboard-header">
+      <div>
+        <h1>Your Projects</h1>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">Select a project to open its Kanban Board or Excel-linked Gantt Chart.</p>
+      </div>
+    </div>
+    <div class="project-grid" id="projectGrid"></div>
+  </section>
+
+  <!-- Kanban View -->
+  <section id="kanbanView" class="hidden" style="height:100%;">
+    <div class="kanban-board">
+      <div class="kanban-col" data-status="To Do" ondragover="allowDrop(event)" ondrop="dropTask(event, 'To Do')">
+        <div class="col-header"><span>To Do</span><span class="col-count" id="count-todo">0</span></div>
+        <div class="task-list" id="list-todo"></div>
+      </div>
+      <div class="kanban-col" data-status="In Progress" ondragover="allowDrop(event)" ondrop="dropTask(event, 'In Progress')">
+        <div class="col-header"><span>In Progress</span><span class="col-count" id="count-prog">0</span></div>
+        <div class="task-list" id="list-prog"></div>
+      </div>
+      <div class="kanban-col" data-status="Done" ondragover="allowDrop(event)" ondrop="dropTask(event, 'Done')">
+        <div class="col-header"><span>Done</span><span class="col-count" id="count-done">0</span></div>
+        <div class="task-list" id="list-done"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Gantt + Excel View -->
+  <section id="ganttView" class="hidden" style="height:100%;">
+    <div class="gantt-workspace">
+      <div class="excel-pane">
+        <table class="excel-grid">
+          <thead>
+            <tr>
+              <th style="width:34px;">#</th>
+              <th style="width:120px;">Category</th>
+              <th style="width:180px;">Task</th>
+              <th style="width:130px;">Owner</th>
+              <th style="width:92px;">Start (D/M/Y)</th>
+              <th style="width:92px;">Finish (D/M/Y)</th>
+              <th style="width:65px;">Days</th>
+              <th style="width:130px;">Depends On</th>
+              <th style="width:40px;"></th>
+            </tr>
+          </thead>
+          <tbody id="excelBody"></tbody>
+        </table>
+      </div>
+      <div class="timeline-pane" id="timelinePane">
+        <div class="timeline-header" id="timelineHeader"></div>
+        <div class="timeline-body" id="timelineBody">
+          <svg class="dep-layer" id="depSvg"></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Task Modal -->
+<div class="modal-backdrop hidden" id="taskModalBackdrop">
+  <div class="modal">
+    <h3 id="modalTitle">Add Task</h3>
+    <input type="hidden" id="editTaskId">
+    <div class="form-group">
+      <label>Task Name</label>
+      <input type="text" id="mTaskName" placeholder="e.g., Design Revision">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Category</label>
+        <input type="text" id="mCategory" placeholder="e.g., Project Kick off">
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="mStatus">
+          <option value="To Do">To Do</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Done">Done</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Responsible / Current Owner</label>
+      <input type="text" id="mOwner" placeholder="e.g., Thomas, Rui Yang">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Start Date (D/M/YYYY)</label>
+        <input type="text" id="mStart" placeholder="4/5/2026">
+      </div>
+      <div class="form-group">
+        <label>Target / Finish Date (D/M/YYYY)</label>
+        <input type="text" id="mEnd" placeholder="24/5/2026">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Dependency (Predecessor Task)</label>
+      <select id="mDep"></select>
+    </div>
+    <div class="modal-footer">
+      <button onclick="closeTaskModal()">Cancel</button>
+      <button class="primary" onclick="saveTaskFromModal()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEFAULT_PROJECTS = [
+  {
+    id: "proj-heat-tray",
+    name: "Heat Tray Automation",
+    tasks: [
+      { id: 1, category: "Project Kick off", name: "AFA", owner: "Thomas", status: "Done", start: "4/5/2026", end: "4/5/2026", dep: null },
+      { id: 2, category: "Project Kick off", name: "AFA Approval", owner: "MA", status: "Done", start: "5/5/2026", end: "24/5/2026", dep: 1 },
+      { id: 3, category: "Project Kick off", name: "Design Revision", owner: "Thomas, Rui Yang", status: "In Progress", start: "5/5/2026", end: "7/6/2026", dep: 1 },
+      { id: 4, category: "Project Kick off", name: "Purchasing", owner: "Thomas, Rui Yang", status: "To Do", start: "2/6/2026", end: "9/8/2026", dep: 3 },
+      { id: 5, category: "Project Kick off", name: "Issue Detailed Drawings", owner: "Rui Yang", status: "To Do", start: "15/6/2026", end: "3/7/2026", dep: 3 },
+      { id: 6, category: "Project Kick off", name: "Fabrication of Parts", owner: "Thomas, Rui Yang", status: "To Do", start: "6/7/2026", end: "31/7/2026", dep: 5 },
+      { id: 7, category: "Setup at Workshop", name: "Assembly of Modules", owner: "Thomas, Rui Yang, Alan", status: "To Do", start: "27/7/2026", end: "14/8/2026", dep: 6 },
+      { id: 8, category: "Setup at Workshop", name: "Module Wiring (Vendor)", owner: "Parthiban, Servoconnect", status: "To Do", start: "17/8/2026", end: "21/8/2026", dep: 7 },
+      { id: 9, category: "Setup at Workshop", name: "Programming", owner: "Parthiban, Simeon", status: "To Do", start: "24/8/2026", end: "18/9/2026", dep: 8 },
+      { id: 10, category: "Setup at Workshop", name: "Testing of Tray Setting Module", owner: "Thomas, Rui Yang, Parthiban", status: "To Do", start: "21/9/2026", end: "25/9/2026", dep: 9 },
+      { id: 11, category: "Setup at Workshop", name: "Mechanical Adjustments", owner: "Thomas, Rui Yang, Alan", status: "To Do", start: "28/9/2026", end: "9/10/2026", dep: 10 },
+      { id: 12, category: "Setup at Takasago", name: "Install Equipment", owner: "EE, Servoconnect, Alan", status: "To Do", start: "12/10/2026", end: "12/10/2026", dep: 11 },
+      { id: 13, category: "Setup at Takasago", name: "Install Power and Air supply", owner: "EE, MM", status: "To Do", start: "13/10/2026", end: "14/10/2026", dep: 12 },
+      { id: 14, category: "Setup at Takasago", name: "Testing", owner: "Thomas, Rui Yang, Allen, Simeon", status: "To Do", start: "15/10/2026", end: "16/10/2026", dep: 13 },
+      { id: 15, category: "Setup at Takasago", name: "Handover", owner: "Thomas, Rui Yang", status: "To Do", start: "19/10/2026", end: "30/10/2026", dep: 14 },
+      { id: 16, category: "Setup at Takasago", name: "Monitoring and Closure", owner: "Thomas, Rui Yang", status: "To Do", start: "2/11/2026", end: "1/1/2027", dep: 15 }
+    ]
+  },
+  {
+    id: "proj-sbm-rotor",
+    name: "SBM Rotor Semi Palletizer Automation",
+    tasks: [
+      { id: 1, category: "Project Kick off", name: "Design Revision", owner: "Thomas, Rui Yang", status: "To Do", start: "3/8/2026", end: "6/11/2026", dep: null },
+      { id: 2, category: "Project Kick off", name: "Purchasing", owner: "Thomas, Rui Yang", status: "To Do", start: "9/11/2026", end: "18/12/2026", dep: 1 },
+      { id: 3, category: "Project Kick off", name: "Issue Detailed Drawings", owner: "Rui Yang", status: "To Do", start: "9/11/2026", end: "27/11/2026", dep: 1 },
+      { id: 4, category: "Project Kick off", name: "Fabrication of Parts", owner: "Rui Yang", status: "To Do", start: "30/11/2026", end: "18/12/2026", dep: 3 },
+      { id: 5, category: "Setup at Workshop", name: "Assembly of Modules", owner: "Thomas, Rui Yang, Alan", status: "To Do", start: "21/12/2026", end: "8/1/2027", dep: 4 },
+      { id: 6, category: "Setup at Workshop", name: "Module Wiring (Vendor)", owner: "Parthiban, Servoconnect", status: "To Do", start: "7/1/2027", end: "20/1/2027", dep: 5 },
+      { id: 7, category: "Setup at Workshop", name: "Programming", owner: "Parthiban", status: "To Do", start: "21/1/2027", end: "17/2/2027", dep: 6 },
+      { id: 8, category: "Setup at Workshop", name: "Testing of Semi Palletizer", owner: "Thomas, Rui Yang, Parthiban", status: "To Do", start: "18/2/2027", end: "3/3/2027", dep: 7 },
+      { id: 9, category: "Setup at Workshop", name: "Mechanical Adjustments", owner: "Thomas, Rui Yang, Alan", status: "To Do", start: "4/3/2027", end: "17/3/2027", dep: 8 },
+      { id: 10, category: "Setup at SBM", name: "Shipping to SBM", owner: "WND, Thomas", status: "To Do", start: "18/3/2027", end: "24/3/2027", dep: 9 },
+      { id: 11, category: "Setup at SBM", name: "Install Power and Air supply", owner: "SBM EE, MM", status: "To Do", start: "26/3/2027", end: "29/3/2027", dep: 10 },
+      { id: 12, category: "Setup at SBM", name: "Testing", owner: "Thomas, Rui Yang", status: "To Do", start: "30/3/2027", end: "31/3/2027", dep: 11 },
+      { id: 13, category: "Setup at SBM", name: "Handover", owner: "Thomas, Rui Yang", status: "To Do", start: "1/4/2027", end: "9/4/2027", dep: 12 },
+      { id: 14, category: "Setup at SBM", name: "Monitoring and Closure", owner: "Thomas, Rui Yang", status: "To Do", start: "12/4/2027", end: "17/4/2027", dep: 13 }
+    ]
+  }
+];
+
+let projects = JSON.parse(localStorage.getItem("pm_suite_projects")) || JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
+let currentProjectId = null;
+let currentView = "kanban";
+let draggedTaskId = null;
+
+function saveState() {
+  localStorage.setItem("pm_suite_projects", JSON.stringify(projects));
+}
+
+function resetData() {
+  if (confirm("Reset all projects to their original default schedules?")) {
+    projects = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
+    saveState();
+    if (currentProjectId) renderProject();
+    else renderDashboard();
+  }
+}
+
+// Date Utilities (D/M/YYYY)
+function parseDMY(str) {
+  if (!str) return new Date();
+  const parts = str.trim().split("/");
+  if (parts.length !== 3) return new Date();
+  const d = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1;
+  const y = parseInt(parts[2], 10);
+  return new Date(y, m, d);
+}
+
+function formatDMY(date) {
+  return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+}
+
+function calcDuration(startStr, endStr) {
+  const s = parseDMY(startStr);
+  const e = parseDMY(endStr);
+  if (isNaN(s) || isNaN(e)) return 1;
+  const diff = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
+  return diff > 0 ? diff : 1;
+}
+
+// Navigation
+function showDashboard() {
+  currentProjectId = null;
+  document.getElementById("headerTitle").textContent = "Project Dashboard";
+  document.getElementById("dashboardView").classList.remove("hidden");
+  document.getElementById("kanbanView").classList.add("hidden");
+  document.getElementById("ganttView").classList.add("hidden");
+  document.getElementById("projectControls").classList.add("hidden");
+  document.getElementById("dashboardControls").classList.remove("hidden");
+  renderDashboard();
+}
+
+function openProject(id) {
+  currentProjectId = id;
+  const proj = projects.find(p => p.id === id);
+  document.getElementById("headerTitle").textContent = proj.name;
+  document.getElementById("dashboardView").classList.add("hidden");
+  document.getElementById("dashboardControls").classList.add("hidden");
+  document.getElementById("projectControls").classList.remove("hidden");
+  switchView(currentView);
+}
+
+function switchView(view) {
+  currentView = view;
+  document.getElementById("btnKanban").classList.toggle("active", view === "kanban");
+  document.getElementById("btnGantt").classList.toggle("active", view === "gantt");
+  document.getElementById("kanbanView").classList.toggle("hidden", view !== "kanban");
+  document.getElementById("ganttView").classList.toggle("hidden", view !== "gantt");
+  renderProject();
+}
+
+function createNewProject() {
+  const name = prompt("Enter new project name:");
+  if (!name || !name.trim()) return;
+  const today = formatDMY(new Date());
+  const newProj = {
+    id: "proj-" + Date.now(),
+    name: name.trim(),
+    tasks: [
+      { id: 1, category: "Planning", name: "Project Kickoff", owner: "Team Lead", status: "To Do", start: today, end: today, dep: null }
+    ]
+  };
+  projects.push(newProj);
+  saveState();
+  openProject(newProj.id);
+}
+
+function deleteProject(e, id) {
+  e.stopPropagation();
+  if (confirm("Delete this project?")) {
+    projects = projects.filter(p => p.id !== id);
+    saveState();
+    renderDashboard();
+  }
+}
+
+// Render Dashboard
+function renderDashboard() {
+  const grid = document.getElementById("projectGrid");
+  grid.innerHTML = "";
+  projects.forEach(p => {
+    const total = p.tasks.length;
+    const done = p.tasks.filter(t => t.status === "Done").length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    const card = document.createElement("div");
+    card.className = "project-card";
+    card.onclick = () => openProject(p.id);
+    card.innerHTML = `
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:start;">
+          <h2>${p.name}</h2>
+          <button class="danger" style="padding:2px 7px; font-size:11px;" onclick="deleteProject(event, '${p.id}')">Delete</button>
+        </div>
+        <div class="project-meta">${total} total tasks • ${done} completed</div>
+      </div>
+      <div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div class="card-stats"><span>Progress</span><span>${pct}%</span></div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function renderProject() {
+  const proj = projects.find(p => p.id === currentProjectId);
+  if (!proj) return;
+  if (currentView === "kanban") renderKanban(proj);
+  else renderGantt(proj);
+}
+
+// Render Kanban
+function renderKanban(proj) {
+  const lists = {
+    "To Do": document.getElementById("list-todo"),
+    "In Progress": document.getElementById("list-prog"),
+    "Done": document.getElementById("list-done")
+  };
+  Object.values(lists).forEach(el => el.innerHTML = "");
+
+  proj.tasks.forEach(t => {
+    const card = document.createElement("div");
+    card.className = "task-card";
+    card.draggable = true;
+    card.ondragstart = () => { draggedTaskId = t.id; };
+    const dur = calcDuration(t.start, t.end);
+    card.innerHTML = `
+      <span class="task-cat">${t.category || "General"}</span>
+      <div class="task-title">${t.name}</div>
+      <div class="task-details">
+        <span><strong>Owner:</strong> ${t.owner || "Unassigned"}</span>
+        <span><strong>Dates:</strong> ${t.start} → ${t.end} (${dur}d)</span>
+      </div>
+      <div class="task-actions">
+        <button onclick="openTaskModal(${t.id})">Edit</button>
+        <button class="danger" onclick="deleteTask(${t.id})">Del</button>
+      </div>
+    `;
+    (lists[t.status] || lists["To Do"]).appendChild(card);
+  });
+
+  document.getElementById("count-todo").textContent = proj.tasks.filter(t => t.status === "To Do").length;
+  document.getElementById("count-prog").textContent = proj.tasks.filter(t => t.status === "In Progress").length;
+  document.getElementById("count-done").textContent = proj.tasks.filter(t => t.status === "Done").length;
+}
+
+function allowDrop(e) { e.preventDefault(); }
+function dropTask(e, newStatus) {
+  e.preventDefault();
+  if (draggedTaskId === null) return;
+  const proj = projects.find(p => p.id === currentProjectId);
+  const task = proj.tasks.find(t => t.id === draggedTaskId);
+  if (task) {
+    task.status = newStatus;
+    saveState();
+    renderKanban(proj);
+  }
+  draggedTaskId = null;
+}
+
+// Render Excel + Gantt Chart
+function renderGantt(proj) {
+  const tbody = document.getElementById("excelBody");
+  tbody.innerHTML = "";
+
+  proj.tasks.forEach((t, idx) => {
+    const tr = document.createElement("tr");
+    const dur = calcDuration(t.start, t.end);
+    
+    let depOptions = `<option value="">None</option>`;
+    proj.tasks.forEach(other => {
+      if (other.id !== t.id) {
+        depOptions += `<option value="${other.id}" ${t.dep == other.id ? "selected" : ""}>#${other.id} ${other.name}</option>`;
+      }
+    });
+
+    tr.innerHTML = `
+      <td style="text-align:center; color:var(--text-muted);">${idx + 1}</td>
+      <td><input type="text" value="${t.category}" onchange="updateField(${t.id}, 'category', this.value)"></td>
+      <td><input type="text" value="${t.name}" onchange="updateField(${t.id}, 'name', this.value)" style="font-weight:600;"></td>
+      <td><input type="text" value="${t.owner}" onchange="updateField(${t.id}, 'owner', this.value)"></td>
+      <td><input type="text" value="${t.start}" onchange="updateField(${t.id}, 'start', this.value)"></td>
+      <td><input type="text" value="${t.end}" onchange="updateField(${t.id}, 'end', this.value)"></td>
+      <td class="dur-cell">${dur}</td>
+      <td><select onchange="updateField(${t.id}, 'dep', this.value ? Number(this.value) : null)">${depOptions}</select></td>
+      <td style="text-align:center;"><button class="danger" style="padding:2px 6px;" onclick="deleteTask(${t.id})">×</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  renderTimelineBars(proj);
+}
+
+function updateField(taskId, field, value) {
+  const proj = projects.find(p => p.id === currentProjectId);
+  const task = proj.tasks.find(t => t.id === taskId);
+  if (task) {
+    task[field] = value;
+    saveState();
+    renderGantt(proj);
+  }
+}
+
+function renderTimelineBars(proj) {
+  const header = document.getElementById("timelineHeader");
+  const body = document.getElementById("timelineBody");
+  const svg = document.getElementById("depSvg");
+  
+  header.innerHTML = "";
+  Array.from(body.querySelectorAll(".timeline-row")).forEach(r => r.remove());
+
+  if (!proj.tasks.length) return;
+
+  // Determine min and max dates
+  let minDate = parseDMY(proj.tasks[0].start);
+  let maxDate = parseDMY(proj.tasks[0].end);
+  proj.tasks.forEach(t => {
+    const s = parseDMY(t.start);
+    const e = parseDMY(t.end);
+    if (s < minDate) minDate = s;
+    if (e > maxDate) maxDate = e;
+  });
+
+  // Pad range to full months
+  const startMonth = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+  const endMonth = new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0);
+  const totalDays = Math.round((endMonth - startMonth) / (1000 * 60 * 60 * 24)) + 1;
+  const pxPerDay = 3.2;
+  const totalWidth = Math.max(totalDays * pxPerDay, 600);
+
+  header.style.width = totalWidth + "px";
+  body.style.width = totalWidth + "px";
+  body.style.height = (proj.tasks.length * 36) + "px";
+  svg.setAttribute("width", totalWidth);
+  svg.setAttribute("height", proj.tasks.length * 36);
+
+  // Build Month Headers
+  let cur = new Date(startMonth);
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  while (cur <= endMonth) {
+    const daysInM = new Date(cur.getFullYear(), cur.getMonth() + 1, 0).getDate();
+    const block = document.createElement("div");
+    block.className = "month-block";
+    block.style.width = (daysInM * pxPerDay) + "px";
+    block.textContent = `${monthNames[cur.getMonth()]} ${cur.getFullYear()}`;
+    header.appendChild(block);
+    cur.setMonth(cur.getMonth() + 1);
+  }
+
+  // Calculate coordinates & render bars
+  const coords = {};
+  proj.tasks.forEach((t, idx) => {
+    const row = document.createElement("div");
+    row.className = "timeline-row";
+    
+    const s = parseDMY(t.start);
+    const e = parseDMY(t.end);
+    const offsetDays = Math.max(0, Math.round((s - startMonth) / (1000 * 60 * 60 * 24)));
+    const durDays = Math.max(1, Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1);
+    
+    const left = offsetDays * pxPerDay;
+    const width = Math.max(durDays * pxPerDay, 12);
+    const topY = idx * 36 + 18;
+
+    coords[t.id] = { left, right: left + width, y: topY };
+
+    const bar = document.createElement("div");
+    const statusCls = t.status === "Done" ? "done" : (t.status === "In Progress" ? "prog" : "todo");
+    bar.className = `gantt-bar ${statusCls}`;
+    bar.style.left = left + "px";
+    bar.style.width = width + "px";
+    bar.title = `${t.name} (${t.start} - ${t.end})`;
+    bar.textContent = t.name;
+    row.appendChild(bar);
+    body.appendChild(row);
+  });
+
+  // Render Dependency Arrows
+  let pathsHtml = `<defs><marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#ef4444"/></marker></defs>`;
+  proj.tasks.forEach(t => {
+    if (t.dep && coords[t.dep] && coords[t.id]) {
+      const from = coords[t.dep];
+      const to = coords[t.id];
+      const startX = from.right;
+      const startY = from.y;
+      const endX = to.left;
+      const endY = to.y;
+      const midX = startX + 8;
+      const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX - 2} ${endY}`;
+      pathsHtml += `<path d="${d}" fill="none" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrow)"/>`;
+    }
+  });
+  svg.innerHTML = pathsHtml;
+}
+
+// Modal CRUD
+function openTaskModal(taskId = null) {
+  const proj = projects.find(p => p.id === currentProjectId);
+  const depSelect = document.getElementById("mDep");
+  depSelect.innerHTML = `<option value="">None</option>`;
+  proj.tasks.forEach(t => {
+    if (t.id !== taskId) {
+      depSelect.innerHTML += `<option value="${t.id}">#${t.id} ${t.name}</option>`;
+    }
+  });
+
+  if (taskId) {
+    const t = proj.tasks.find(x => x.id === taskId);
+    document.getElementById("modalTitle").textContent = "Edit Task";
+    document.getElementById("editTaskId").value = t.id;
+    document.getElementById("mTaskName").value = t.name;
+    document.getElementById("mCategory").value = t.category;
+    document.getElementById("mStatus").value = t.status;
+    document.getElementById("mOwner").value = t.owner;
+    document.getElementById("mStart").value = t.start;
+    document.getElementById("mEnd").value = t.end;
+    document.getElementById("mDep").value = t.dep || "";
+  } else {
+    const today = formatDMY(new Date());
+    document.getElementById("modalTitle").textContent = "Add New Task";
+    document.getElementById("editTaskId").value = "";
+    document.getElementById("mTaskName").value = "";
+    document.getElementById("mCategory").value = "General";
+    document.getElementById("mStatus").value = "To Do";
+    document.getElementById("mOwner").value = "";
+    document.getElementById("mStart").value = today;
+    document.getElementById("mEnd").value = today;
+    document.getElementById("mDep").value = "";
+  }
+  document.getElementById("taskModalBackdrop").classList.remove("hidden");
+}
+
+function closeTaskModal() {
+  document.getElementById("taskModalBackdrop").classList.add("hidden");
+}
+
+function saveTaskFromModal() {
+  const proj = projects.find(p => p.id === currentProjectId);
+  const editId = document.getElementById("editTaskId").value;
+  const name = document.getElementById("mTaskName").value.trim() || "Untitled Task";
+  const category = document.getElementById("mCategory").value.trim() || "General";
+  const status = document.getElementById("mStatus").value;
+  const owner = document.getElementById("mOwner").value.trim();
+  const start = document.getElementById("mStart").value.trim() || formatDMY(new Date());
+  const end = document.getElementById("mEnd").value.trim() || start;
+  const depVal = document.getElementById("mDep").value;
+  const dep = depVal ? Number(depVal) : null;
+
+  if (editId) {
+    const t = proj.tasks.find(x => x.id == editId);
+    Object.assign(t, { name, category, status, owner, start, end, dep });
+  } else {
+    const nextId = proj.tasks.length ? Math.max(...proj.tasks.map(t => t.id)) + 1 : 1;
+    proj.tasks.push({ id: nextId, name, category, status, owner, start, end, dep });
+  }
+  saveState();
+  closeTaskModal();
+  renderProject();
+}
+
+function deleteTask(taskId) {
+  if (!confirm("Delete this task?")) return;
+  const proj = projects.find(p => p.id === currentProjectId);
+  proj.tasks = proj.tasks.filter(t => t.id !== taskId);
+  proj.tasks.forEach(t => { if (t.dep === taskId) t.dep = null; });
+  saveState();
+  renderProject();
+}
+
+// Initialize
+showDashboard();
+</script>
+</body>
+</html>
