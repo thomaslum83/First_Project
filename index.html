@@ -6,1267 +6,554 @@
 <title>Project Kanban & Gantt Tracker</title>
 <style>
   :root {
-    --bg: #f4f6f9;
+    --bg: #f1f5f9;
     --surface: #ffffff;
-    --border: #dce1e8;
-    --text: #1e293b;
+    --border: #cbd5e1;
+    --text: #0f172a;
     --muted: #64748b;
     --primary: #2563eb;
     --primary-hover: #1d4ed8;
-    --pending: #6b7280;
-    --todo: #2563eb;
-    --inprogress: #16a34a;
-    --completed: #111827;
-    --warning: #eab308;
-    --danger: #dc2626;
-    --row-h: 44px;
-    --week-w: 84px;
+    --c-pending: #64748b;
+    --c-todo: #2563eb;
+    --c-progress: #16a34a;
+    --c-done: #0f172a;
+    --c-warn: #eab308;
+    --c-over: #dc2626;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 12px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-  .header-left, .header-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  h1 { font-size: 18px; font-weight: 700; }
-  button {
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text);
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-  }
-  button:hover { background: #f1f5f9; }
-  button.primary {
-    background: var(--primary);
-    color: #fff;
-    border-color: var(--primary);
-  }
-  button.primary:hover { background: var(--primary-hover); }
-  button.active-tab {
-    background: #eff6ff;
-    color: var(--primary);
-    border-color: var(--primary);
-    font-weight: 600;
-  }
-  button.danger {
-    color: var(--danger);
-    border-color: #fecaca;
-  }
-  button.danger:hover { background: #fef2f2; }
-
-  /* Dashboard */
-  #dashboard-view {
-    padding: 28px;
-    overflow-y: auto;
-    flex: 1;
-  }
-  .dash-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-  }
-  .project-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 16px;
-  }
-  .project-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 18px;
-    cursor: pointer;
-    transition: box-shadow 0.15s, transform 0.15s;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 14px;
-  }
-  .project-card:hover {
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
-    transform: translateY(-2px);
-  }
-  .project-card h3 { font-size: 16px; margin-bottom: 4px; }
-  .project-meta { font-size: 12px; color: var(--muted); }
-  .progress-bar {
-    height: 6px;
-    background: #e2e8f0;
-    border-radius: 999px;
-    overflow: hidden;
-    margin-top: 8px;
-  }
-  .progress-fill {
-    height: 100%;
-    background: var(--inprogress);
-  }
-  .card-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-top: 1px solid #f1f5f9;
-    padding-top: 10px;
-  }
-
-  /* Workspace */
-  #workspace-view {
-    display: none;
-    flex-direction: column;
-    flex: 1;
-    overflow: hidden;
-  }
-  .legend-bar {
-    background: #f8fafc;
-    border-bottom: 1px solid var(--border);
-    padding: 6px 20px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    font-size: 12px;
-    color: var(--muted);
-    align-items: center;
-    flex-shrink: 0;
-  }
-  .legend-item { display: flex; align-items: center; gap: 5px; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  button, input, select { font-family: inherit; }
+  .btn { padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; }
+  .btn:hover { background: #f8fafc; }
+  .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-danger { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+  .btn-danger:hover { background: #fee2e2; }
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 30; }
+  .topbar-left, .topbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .brand { font-weight: 700; font-size: 16px; color: var(--primary); }
+  .tabs { display: inline-flex; background: #e2e8f0; padding: 3px; border-radius: 7px; }
+  .tab { padding: 5px 12px; border: none; background: transparent; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+  .container { padding: 20px; max-width: 1600px; margin: 0 auto; }
+  .grid-projects { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-top: 16px; }
+  .proj-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; }
+  .proj-card h3 { margin: 0 0 6px; font-size: 17px; }
+  .empty-box { background: var(--surface); border: 2px dashed var(--border); border-radius: 12px; padding: 48px 20px; text-align: center; margin-top: 20px; }
   /* Kanban */
-  #kanban-container {
-    display: flex;
-    gap: 16px;
-    padding: 16px 20px;
-    overflow-x: auto;
-    flex: 1;
-    align-items: flex-start;
-  }
-  .kanban-col {
-    background: #eef2f6;
-    border-radius: 10px;
-    min-width: 280px;
-    max-width: 310px;
-    flex: 1;
-    max-height: 100%;
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--border);
-  }
-  .kanban-col.alert-col {
-    background: #fef2f2;
-    border-color: #fecaca;
-  }
-  .col-header {
-    padding: 12px 14px;
-    font-weight: 700;
-    font-size: 13px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid rgba(0,0,0,0.06);
-  }
-  .badge {
-    background: rgba(0,0,0,0.08);
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-size: 11px;
-  }
-  .col-body {
-    padding: 10px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    min-height: 120px;
-  }
-  .task-card {
-    background: var(--surface);
-    border-radius: 8px;
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-left: 5px solid var(--todo);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    cursor: grab;
-  }
-  .task-card:active { cursor: grabbing; }
-  .task-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; line-height: 1.35; }
-  .task-info {
-    font-size: 11px;
-    color: var(--muted);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: space-between;
-  }
-  .pill {
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 600;
-    background: #f1f5f9;
-    color: #334155;
-  }
-
+  .kanban-board { display: grid; grid-template-columns: repeat(4, minmax(260px, 1fr)); gap: 14px; align-items: start; overflow-x: auto; padding-bottom: 16px; }
+  .k-col { background: #e2e8f0; border-radius: 9px; padding: 10px; min-height: 420px; }
+  .k-col.warn-col { background: #fef2f2; border: 1px solid #fecaca; }
+  .k-col-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 13px; margin-bottom: 10px; padding: 0 4px; }
+  .badge { background: rgba(15,23,42,0.1); padding: 2px 7px; border-radius: 99px; font-size: 11px; }
+  .k-card { background: var(--surface); border-radius: 7px; padding: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); border-left: 5px solid var(--c-todo); cursor: grab; }
+  .k-card-title { font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+  .k-meta { display: flex; flex-wrap: wrap; gap: 5px; font-size: 11px; color: var(--muted); }
+  .pill { padding: 2px 6px; border-radius: 4px; background: #f1f5f9; font-weight: 600; }
   /* Gantt */
-  #gantt-container {
-    display: none;
-    flex: 1;
-    overflow: hidden;
-    position: relative;
-  }
-  .gantt-split {
-    display: flex;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-  }
-  .gantt-left {
-    width: 540px;
-    min-width: 260px;
-    max-width: 75%;
-    border-right: 2px solid var(--border);
-    background: var(--surface);
-    overflow-x: auto;
-    overflow-y: hidden;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  .gantt-splitter {
-    width: 5px;
-    background: #e2e8f0;
-    cursor: col-resize;
-    flex-shrink: 0;
-  }
-  .gantt-splitter:hover { background: var(--primary); }
-  .gantt-right {
-    flex: 1;
-    overflow: auto;
-    background: #fafbfc;
-    position: relative;
-  }
-  .grid-header {
-    display: flex;
-    height: 48px;
-    background: #f1f5f9;
-    border-bottom: 1px solid var(--border);
-    font-size: 12px;
-    font-weight: 700;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    width: max-content;
-  }
-  .th-cell {
-    display: flex;
-    align-items: center;
-    padding: 0 8px;
-    border-right: 1px solid var(--border);
-    position: relative;
-    flex-shrink: 0;
-    user-select: none;
-    overflow: hidden;
-    white-space: nowrap;
-  }
-  .col-resizer {
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 6px;
-    height: 100%;
-    cursor: col-resize;
-    z-index: 5;
-  }
-  .col-resizer:hover { background: rgba(37, 99, 235, 0.45); }
-  .grid-body {
-    overflow-y: auto;
-    flex: 1;
-    width: max-content;
-  }
-  .grid-row {
-    display: flex;
-    height: var(--row-h);
-    border-bottom: 1px solid #edf2f7;
-    align-items: center;
-    font-size: 12px;
-  }
-  .grid-row:hover { background: #f8fafc; }
-  .td-cell {
-    padding: 0 6px;
-    border-right: 1px solid #edf2f7;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-    overflow: hidden;
-  }
-  .td-cell input, .td-cell select {
-    width: 100%;
-    border: 1px solid transparent;
-    background: transparent;
-    font-size: 12px;
-    color: var(--text);
-    padding: 4px;
-    border-radius: 4px;
-    font-family: inherit;
-  }
-  .td-cell input:focus, .td-cell select:focus {
-    outline: none;
-    border-color: var(--primary);
-    background: #fff;
-  }
-
-  /* Timeline */
-  .timeline-header {
-    display: flex;
-    height: 48px;
-    background: #f1f5f9;
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-  .week-col-header {
-    width: var(--week-w);
-    flex-shrink: 0;
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-  }
-  .week-col-header strong { font-size: 12px; color: var(--text); }
-  .week-col-header span { color: var(--muted); font-size: 10px; }
-  .timeline-canvas {
-    position: relative;
-  }
-  .timeline-row-bg {
-    height: var(--row-h);
-    border-bottom: 1px solid #edf2f7;
-    display: flex;
-  }
-  .timeline-week-cell {
-    width: var(--week-w);
-    flex-shrink: 0;
-    border-right: 1px solid #edf2f7;
-    height: 100%;
-  }
-  .gantt-bar {
-    position: absolute;
-    height: 30px;
-    top: 7px;
-    border-radius: 6px;
-    color: #fff;
-    font-size: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 6px;
-    gap: 4px;
-    cursor: move;
-    user-select: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-    z-index: 4;
-    overflow: hidden;
-  }
-  .gantt-bar .bar-date {
-    font-size: 9px;
-    opacity: 0.92;
-    white-space: nowrap;
-    flex-shrink: 0;
-    font-weight: 600;
-  }
-  .gantt-bar .bar-label {
-    flex: 1;
-    text-align: center;
-    font-weight: 600;
-    line-height: 1.1;
-    font-size: 10px;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    word-break: break-word;
-  }
-  .resize-handle {
-    position: absolute;
-    top: 0;
-    width: 6px;
-    height: 100%;
-    cursor: ew-resize;
-    z-index: 6;
-  }
-  .resize-handle.left { left: 0; }
-  .resize-handle.right { right: 0; }
-  .today-line {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: #ef4444;
-    z-index: 3;
-    pointer-events: none;
-  }
-  svg.dep-layer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    pointer-events: none;
-    z-index: 3;
-  }
-
+  .gantt-wrap { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; height: calc(100vh - 120px); min-height: 460px; }
+  .g-left { overflow-x: auto; overflow-y: auto; border-right: 2px solid var(--border); flex-shrink: 0; max-width: 60%; }
+  .g-right { flex: 1; overflow: auto; position: relative; background: #fafafa; }
+  table.g-table { border-collapse: collapse; table-layout: fixed; font-size: 12px; }
+  .g-table th, .g-table td { border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; padding: 0 6px; height: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .g-table th { background: #f8fafc; height: 48px; font-weight: 700; position: sticky; top: 0; z-index: 10; text-align: left; user-select: none; }
+  .resizer { position: absolute; right: 0; top: 0; width: 6px; height: 100%; cursor: col-resize; background: transparent; }
+  .resizer:hover { background: var(--primary); }
+  .g-input { width: 100%; border: 1px solid transparent; background: transparent; font-size: 12px; padding: 4px; border-radius: 4px; color: var(--text); }
+  .g-input:focus { border-color: var(--primary); background: #fff; outline: none; }
+  .g-timeline-head { display: flex; height: 48px; background: #f8fafc; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 9; }
+  .g-week { border-right: 1px solid #cbd5e1; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; flex-shrink: 0; }
+  .g-week b { font-size: 12px; }
+  .g-canvas { position: relative; }
+  .g-row-bg { height: 44px; border-bottom: 1px solid #e2e8f0; display: flex; }
+  .g-week-cell { border-right: 1px solid #f1f5f9; height: 100%; flex-shrink: 0; }
+  .g-bar { position: absolute; height: 32px; top: 6px; border-radius: 5px; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; gap: 4px; cursor: move; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,0.2); z-index: 5; }
+  .g-bar.dark-text { color: #0f172a; }
+  .g-bar-date { font-weight: 700; font-size: 9.5px; flex-shrink: 0; opacity: 0.95; }
+  .g-bar-label { flex: 1; text-align: center; line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; font-weight: 600; }
+  .g-handle { position: absolute; top: 0; width: 7px; height: 100%; cursor: ew-resize; }
+  .g-handle.left { left: 0; }
+  .g-handle.right { right: 0; }
+  .today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444; z-index: 4; pointer-events: none; }
+  svg.dep-layer { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 4; }
+  .legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11px; align-items: center; }
+  .leg-item { display: inline-flex; align-items: center; gap: 4px; }
+  .dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
   /* Modal */
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.45);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-  }
-  .modal {
-    background: var(--surface);
-    border-radius: 10px;
-    width: 440px;
-    max-width: 92vw;
-    padding: 20px;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.2);
-  }
-  .modal h2 { font-size: 16px; margin-bottom: 14px; }
-  .form-group { margin-bottom: 12px; }
-  .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--muted); }
-  .form-group input, .form-group select {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 13px;
-  }
-  .form-row { display: flex; gap: 10px; }
-  .form-row .form-group { flex: 1; }
-  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none; align-items: center; justify-content: center; z-index: 50; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--surface); border-radius: 10px; padding: 18px; width: 420px; max-width: 94vw; box-shadow: 0 10px 25px rgba(0,0,0,0.18); }
+  .modal h3 { margin: 0 0 12px; }
+  .form-row { margin-bottom: 10px; }
+  .form-row label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+  .form-row input, .form-row select { width: 100%; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="header-left">
-    <button id="back-btn" style="display:none;" onclick="showDashboard()">← All Projects</button>
-    <h1 id="page-title">Project Portfolio Dashboard</h1>
-  </div>
-  <div class="header-right" id="workspace-controls" style="display:none;">
-    <button id="tab-kanban" class="active-tab" onclick="switchView('kanban')">Kanban Board</button>
-    <button id="tab-gantt" onclick="switchView('gantt')">Gantt Chart</button>
-    <button class="primary" onclick="openTaskModal()">+ Add Task</button>
-  </div>
-</header>
-
-<!-- Dashboard View -->
-<div id="dashboard-view">
-  <div class="dash-header">
-    <div>
-      <h2 style="font-size:16px;">Your Projects</h2>
-      <p style="font-size:13px; color:var(--muted);">Select a project to open its Kanban board and weekly Gantt schedule.</p>
-    </div>
-    <button class="primary" onclick="createNewProject()">+ New Project</button>
-  </div>
-  <div class="project-grid" id="project-grid"></div>
-</div>
-
-<!-- Workspace View -->
-<div id="workspace-view">
-  <div class="legend-bar">
-    <strong>Color Rules:</strong>
-    <span class="legend-item"><span class="dot" style="background:var(--pending)"></span>Pending (Grey)</span>
-    <span class="legend-item"><span class="dot" style="background:var(--todo)"></span>To Do (Blue)</span>
-    <span class="legend-item"><span class="dot" style="background:var(--inprogress)"></span>In Progress (Green)</span>
-    <span class="legend-item"><span class="dot" style="background:var(--completed)"></span>Completed (Black)</span>
-    <span class="legend-item"><span class="dot" style="background:var(--warning)"></span>Near Deadline ≤7d (Yellow)</span>
-    <span class="legend-item"><span class="dot" style="background:var(--danger)"></span>Exceeded Deadline (Red)</span>
-  </div>
-
-  <!-- Kanban View -->
-  <div id="kanban-container"></div>
-
-  <!-- Gantt View -->
-  <div id="gantt-container">
-    <div class="gantt-split">
-      <div class="gantt-left" id="gantt-left">
-        <div class="grid-header" id="grid-header"></div>
-        <div class="grid-body" id="grid-body"></div>
-      </div>
-      <div class="gantt-splitter" id="gantt-splitter"></div>
-      <div class="gantt-right" id="gantt-right">
-        <div class="timeline-header" id="timeline-header"></div>
-        <div class="timeline-canvas" id="timeline-canvas"></div>
-      </div>
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="brand">Kanban &amp; Gantt Tracker</span>
+    <button class="btn" id="btnHome" style="display:none;" onclick="goHome()">&larr; All Projects</button>
+    <strong id="activeProjTitle" style="font-size:15px;"></strong>
+    <div class="tabs" id="viewTabs" style="display:none;">
+      <button class="tab active" id="tabKanban" onclick="switchView('kanban')">Kanban Board</button>
+      <button class="tab" id="tabGantt" onclick="switchView('gantt')">Gantt Chart</button>
     </div>
   </div>
+  <div class="topbar-right">
+    <button class="btn btn-primary" id="btnAddTask" style="display:none;" onclick="openTaskModal()">+ Add Task</button>
+    <button class="btn" id="btnExportCsv" style="display:none;" onclick="exportCSV()">Export CSV</button>
+    <button class="btn" onclick="exportJSON()">Export JSON</button>
+    <button class="btn" onclick="document.getElementById('fileImport').click()">Import JSON</button>
+    <input type="file" id="fileImport" accept=".json" style="display:none;" onchange="importJSON(event)">
+  </div>
 </div>
+
+<div class="container" id="app"></div>
 
 <!-- Task Modal -->
-<div class="modal-backdrop" id="task-modal">
+<div class="modal-bg" id="taskModal">
   <div class="modal">
-    <h2 id="modal-title">Edit Task</h2>
-    <input type="hidden" id="edit-task-id">
-    <div class="form-group">
-      <label>Task / Activity Description</label>
-      <input type="text" id="edit-title" placeholder="Enter task description">
-    </div>
+    <h3 id="modalHeading">Edit Task</h3>
+    <input type="hidden" id="mTaskId">
+    <div class="form-row"><label>Task Name</label><input type="text" id="mName"></div>
+    <div class="form-row"><label>Category</label><input type="text" id="mCat" placeholder="e.g. Design, Setup, Testing"></div>
+    <div class="form-row"><label>Owner</label><input type="text" id="mOwner"></div>
     <div class="form-row">
-      <div class="form-group">
-        <label>Status</label>
-        <select id="edit-status">
-          <option value="Pending">Pending</option>
-          <option value="To Do">To Do</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Completed">Completed</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Owner</label>
-        <input type="text" id="edit-owner" placeholder="Assignee name">
-      </div>
+      <label>Status</label>
+      <select id="mStatus">
+        <option value="Pending">Pending (Grey)</option>
+        <option value="To Do">To Do (Blue)</option>
+        <option value="In Progress">In Progress (Green)</option>
+        <option value="Completed">Completed (Black)</option>
+      </select>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Start Date (D/M/YYYY)</label>
-        <input type="text" id="edit-start" placeholder="4/5/2026">
-      </div>
-      <div class="form-group">
-        <label>End Date (D/M/YYYY)</label>
-        <input type="text" id="edit-end" placeholder="15/5/2026">
-      </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+      <div class="form-row"><label>Start Date (D/M/YYYY)</label><input type="text" id="mStart" placeholder="4/5/2026"></div>
+      <div class="form-row"><label>End Date (D/M/YYYY)</label><input type="text" id="mEnd" placeholder="14/5/2026"></div>
     </div>
-    <div class="form-group">
-      <label>Depends On (Predecessor Task)</label>
-      <select id="edit-dep"></select>
-    </div>
-    <div class="modal-footer">
-      <button class="danger" id="delete-task-btn" onclick="deleteCurrentTask()" style="margin-right:auto;">Delete</button>
-      <button onclick="closeTaskModal()">Cancel</button>
-      <button class="primary" onclick="saveTaskModal()">Save Task</button>
+    <div class="form-row"><label>Depends On</label><select id="mDep"></select></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="btnDelTask" onclick="deleteTask()" style="margin-right:auto;">Delete</button>
+      <button class="btn" onclick="closeTaskModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTaskModal()">Save</button>
     </div>
   </div>
 </div>
 
 <script>
-const STORAGE_KEY = 'kanban_gantt_tracker_v10';
-const COL_WIDTHS_KEY = 'kanban_gantt_col_widths_v10';
+const STORAGE_KEY = 'kb_gantt_v11_data';
+const COL_KEY = 'kb_gantt_v11_cols';
+const DAY_MS = 86400000;
+const PX_PER_DAY = 16;
 
-const DEFAULT_COL_WIDTHS = {
-  title: 190,
-  owner: 85,
-  start: 85,
-  end: 85,
-  days: 55,
-  dep: 130
-};
-
-let colWidths = JSON.parse(localStorage.getItem(COL_WIDTHS_KEY) || 'null') || { ...DEFAULT_COL_WIDTHS };
-
-const DEFAULT_PROJECTS = [
-  {
-    id: 'proj-heat-tray',
-    name: 'Heat Tray Automation',
-    tasks: [
-      { id: 'ht-1', title: 'AFA', status: 'Completed', owner: 'Thomas', start: '4/5/2026', end: '8/5/2026', dep: '' },
-      { id: 'ht-2', title: 'AFA Approval', status: 'Completed', owner: 'Client', start: '11/5/2026', end: '15/5/2026', dep: 'ht-1' },
-      { id: 'ht-3', title: 'Design Revision', status: 'In Progress', owner: 'Rui Yang', start: '18/5/2026', end: '29/5/2026', dep: 'ht-2' },
-      { id: 'ht-4', title: 'BOM Release & Procurement', status: 'To Do', owner: 'Alan', start: '1/6/2026', end: '19/6/2026', dep: 'ht-3' },
-      { id: 'ht-5', title: 'Mechanical Fabrication', status: 'Pending', owner: 'WND', start: '22/6/2026', end: '17/7/2026', dep: 'ht-4' },
-      { id: 'ht-6', title: 'Electrical Panel Wiring', status: 'Pending', owner: 'Parthiban', start: '29/6/2026', end: '24/7/2026', dep: 'ht-4' },
-      { id: 'ht-7', title: 'Workshop Mechanical Assembly', status: 'Pending', owner: 'WND', start: '20/7/2026', end: '7/8/2026', dep: 'ht-5' },
-      { id: 'ht-8', title: 'PLC & HMI Programming', status: 'Pending', owner: 'Servoconnect', start: '27/7/2026', end: '14/8/2026', dep: 'ht-6' },
-      { id: 'ht-9', title: 'Internal Dry Run & I/O Check', status: 'Pending', owner: 'Thomas', start: '17/8/2026', end: '28/8/2026', dep: 'ht-8' },
-      { id: 'ht-10', title: 'FAT (Factory Acceptance Test)', status: 'Pending', owner: 'Thomas', start: '31/8/2026', end: '4/9/2026', dep: 'ht-9' },
-      { id: 'ht-11', title: 'Packing & Delivery to Takasago', status: 'Pending', owner: 'Alan', start: '7/9/2026', end: '18/9/2026', dep: 'ht-10' },
-      { id: 'ht-12', title: 'Site Positioning & Leveling', status: 'Pending', owner: 'WND', start: '21/9/2026', end: '25/9/2026', dep: 'ht-11' },
-      { id: 'ht-13', title: 'Site Power & Pneumatic Hookup', status: 'Pending', owner: 'Parthiban', start: '28/9/2026', end: '2/10/2026', dep: 'ht-12' },
-      { id: 'ht-14', title: 'Site Commissioning & Tuning', status: 'Pending', owner: 'Servoconnect', start: '5/10/2026', end: '16/10/2026', dep: 'ht-13' },
-      { id: 'ht-15', title: 'SAT (Site Acceptance Test)', status: 'Pending', owner: 'Thomas', start: '19/10/2026', end: '23/10/2026', dep: 'ht-14' },
-      { id: 'ht-16', title: 'Training & Project Handover', status: 'Pending', owner: 'Thomas', start: '26/10/2026', end: '30/10/2026', dep: 'ht-15' }
-    ]
-  },
-  {
-    id: 'proj-sbm-rotor',
-    name: 'SBM Rotor Semi Palletizer Automation',
-    tasks: [
-      { id: 'sr-1', title: 'Design Revision', status: 'To Do', owner: 'Thomas', start: '3/8/2026', end: '6/11/2026', dep: '' },
-      { id: 'sr-2', title: 'Long Lead Items Ordering', status: 'To Do', owner: 'Alan', start: '17/8/2026', end: '25/9/2026', dep: 'sr-1' },
-      { id: 'sr-3', title: 'Fabrication & Standard Parts', status: 'Pending', owner: 'Rui Yang', start: '14/9/2026', end: '13/11/2026', dep: 'sr-2' },
-      { id: 'sr-4', title: 'Electrical Control Box Build', status: 'Pending', owner: 'Parthiban', start: '5/10/2026', end: '20/11/2026', dep: 'sr-2' },
-      { id: 'sr-5', title: 'Workshop Assembly', status: 'Pending', owner: 'WND', start: '16/11/2026', end: '18/12/2026', dep: 'sr-3' },
-      { id: 'sr-6', title: 'Software & Robot Teaching', status: 'Pending', owner: 'Servoconnect', start: '23/11/2026', end: '24/12/2026', dep: 'sr-4' },
-      { id: 'sr-7', title: 'Internal Testing & Debugging', status: 'Pending', owner: 'Thomas', start: '28/12/2026', end: '8/1/2027', dep: 'sr-6' },
-      { id: 'sr-8', title: 'Customer FAT at Workshop', status: 'Pending', owner: 'Thomas', start: '11/1/2027', end: '15/1/2027', dep: 'sr-7' },
-      { id: 'sr-9', title: 'Shipping to SBM', status: 'Pending', owner: 'Alan', start: '18/1/2027', end: '29/1/2027', dep: 'sr-8' },
-      { id: 'sr-10', title: 'Site Installation at SBM', status: 'Pending', owner: 'WND', start: '1/2/2027', end: '12/2/2027', dep: 'sr-9' },
-      { id: 'sr-11', title: 'Site Electrical & Safety Interlock', status: 'Pending', owner: 'SBM EE', start: '15/2/2027', end: '19/2/2027', dep: 'sr-10' },
-      { id: 'sr-12', title: 'Production Trial Run', status: 'Pending', owner: 'MM', start: '22/2/2027', end: '5/3/2027', dep: 'sr-11' },
-      { id: 'sr-13', title: 'SAT Sign-off', status: 'Pending', owner: 'Thomas', start: '8/3/2027', end: '12/3/2027', dep: 'sr-12' },
-      { id: 'sr-14', title: 'Monitoring and Closure', status: 'Pending', owner: 'Thomas', start: '15/3/2027', end: '26/3/2027', dep: 'sr-13' }
-    ]
-  }
-];
-
-let projects = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || DEFAULT_PROJECTS;
-let currentProjectId = null;
+let state = loadState();
+let colWidths = JSON.parse(localStorage.getItem(COL_KEY) || '{"name":210,"owner":95,"start":92,"end":92,"days":58,"dep":130}');
+let activeProjectId = null;
 let currentView = 'kanban';
 
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return { projects: [] };
+}
+
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 function parseDMY(str) {
   if (!str) return null;
-  const parts = str.trim().split('/');
-  if (parts.length !== 3) return null;
-  const d = parseInt(parts[0], 10);
-  const m = parseInt(parts[1], 10) - 1;
-  const y = parseInt(parts[2], 10);
+  const p = String(str).trim().split('/');
+  if (p.length !== 3) return null;
+  const d = parseInt(p[0], 10), m = parseInt(p[1], 10) - 1, y = parseInt(p[2], 10);
   const dt = new Date(y, m, d);
-  if (isNaN(dt.getTime())) return null;
-  dt.setHours(0, 0, 0, 0);
-  return dt;
+  return isNaN(dt.getTime()) ? null : dt;
 }
 
-function formatDMY(date) {
-  if (!date || isNaN(date.getTime())) return '';
-  return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+function formatDMY(dt) {
+  if (!dt) return '';
+  return `${dt.getDate()}/${dt.getMonth() + 1}/${dt.getFullYear()}`;
 }
 
-function formatDDMM(date) {
-  if (!date || isNaN(date.getTime())) return '';
-  const dd = String(date.getDate()).padStart(2, '0');
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  return `${dd}/${mm}`;
+function formatDM(dt) {
+  if (!dt) return '';
+  return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
 }
 
-function addDays(date, days) {
-  const res = new Date(date);
-  res.setDate(res.getDate() + days);
-  return res;
-}
-
-function diffDaysInclusive(startStr, endStr) {
-  const s = parseDMY(startStr);
-  const e = parseDMY(endStr);
+function calcDays(startStr, endStr) {
+  const s = parseDMY(startStr), e = parseDMY(endStr);
   if (!s || !e) return 1;
-  const diff = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
-  return Math.max(1, diff);
+  return Math.max(1, Math.round((e - s) / DAY_MS) + 1);
 }
 
-function getTaskUrgency(task) {
-  if (task.status === 'Completed') return 'normal';
+function addDaysStr(startStr, days) {
+  const s = parseDMY(startStr);
+  if (!s) return startStr;
+  const d = Math.max(1, parseInt(days, 10) || 1);
+  const e = new Date(s.getTime() + (d - 1) * DAY_MS);
+  return formatDMY(e);
+}
+
+function getTaskVisuals(task) {
+  const today = new Date(); today.setHours(0,0,0,0);
   const end = parseDMY(task.end);
-  if (!end) return 'normal';
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const daysLeft = Math.round((end - today) / (1000 * 60 * 60 * 24));
-  if (daysLeft < 0) return 'overdue';
-  if (daysLeft <= 7) return 'warning';
-  return 'normal';
+  const isDone = task.status === 'Completed';
+  let urgency = 'normal';
+  if (!isDone && end) {
+    const diff = Math.round((end - today) / DAY_MS);
+    if (diff < 0) urgency = 'overdue';
+    else if (diff <= 7) urgency = 'warning';
+  }
+  let color = '#2563eb', darkText = false;
+  if (urgency === 'overdue') color = '#dc2626';
+  else if (urgency === 'warning') { color = '#eab308'; darkText = true; }
+  else if (task.status === 'Pending') color = '#64748b';
+  else if (task.status === 'In Progress') color = '#16a34a';
+  else if (task.status === 'Completed') color = '#0f172a';
+  return { color, darkText, urgency };
 }
 
-function getTaskColor(task) {
-  const urgency = getTaskUrgency(task);
-  if (urgency === 'overdue') return 'var(--danger)';
-  if (urgency === 'warning') return 'var(--warning)';
-  if (task.status === 'Pending') return 'var(--pending)';
-  if (task.status === 'To Do') return 'var(--todo)';
-  if (task.status === 'In Progress') return 'var(--inprogress)';
-  if (task.status === 'Completed') return 'var(--completed)';
-  return 'var(--todo)';
+function getActiveProject() {
+  return state.projects.find(p => p.id === activeProjectId);
 }
 
-function getSortedTasks(project) {
-  return [...project.tasks].sort((a, b) => {
-    const sa = parseDMY(a.start) || new Date(8640000000000000);
-    const sb = parseDMY(b.start) || new Date(8640000000000000);
-    if (sa.getTime() !== sb.getTime()) return sa - sb;
-    const ea = parseDMY(a.end) || new Date(8640000000000000);
-    const eb = parseDMY(b.end) || new Date(8640000000000000);
+function sortTasksByDate(tasks) {
+  return [...tasks].sort((a, b) => {
+    const sa = parseDMY(a.start)?.getTime() || 0;
+    const sb = parseDMY(b.start)?.getTime() || 0;
+    if (sa !== sb) return sa - sb;
+    const ea = parseDMY(a.end)?.getTime() || 0;
+    const eb = parseDMY(b.end)?.getTime() || 0;
     return ea - eb;
   });
 }
 
-function showDashboard() {
-  currentProjectId = null;
-  document.getElementById('dashboard-view').style.display = 'block';
-  document.getElementById('workspace-view').style.display = 'none';
-  document.getElementById('back-btn').style.display = 'none';
-  document.getElementById('workspace-controls').style.display = 'none';
-  document.getElementById('page-title').textContent = 'Project Portfolio Dashboard';
-  renderDashboard();
+function goHome() {
+  activeProjectId = null;
+  render();
 }
 
-function renderDashboard() {
-  const grid = document.getElementById('project-grid');
-  grid.innerHTML = '';
-  projects.forEach(p => {
-    const total = p.tasks.length;
-    const done = p.tasks.filter(t => t.status === 'Completed').length;
-    const pct = total ? Math.round((done / total) * 100) : 0;
-    const card = document.createElement('div');
-    card.className = 'project-card';
-    card.onclick = (e) => {
-      if (e.target.tagName === 'BUTTON') return;
-      openProject(p.id);
-    };
-    card.innerHTML = `
-      <div>
-        <h3>${escapeHtml(p.name)}</h3>
-        <div class="project-meta">${total} tasks • ${done} completed (${pct}%)</div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-      </div>
-      <div class="card-actions">
-        <button class="primary" onclick="openProject('${p.id}')">Open Board</button>
-        <button class="danger" onclick="deleteProject('${p.id}')">Delete</button>
-      </div>
-    `;
-    grid.appendChild(card);
-  });
+function openProject(id) {
+  activeProjectId = id;
+  currentView = 'kanban';
+  render();
+}
+
+function switchView(v) {
+  currentView = v;
+  render();
 }
 
 function createNewProject() {
   const name = prompt('Enter new project name:');
   if (!name || !name.trim()) return;
   const today = new Date();
-  const nextWeek = addDays(today, 6);
-  const newProj = {
-    id: 'proj-' + Date.now(),
+  const s = formatDMY(today);
+  const e = addDaysStr(s, 5);
+  const proj = {
+    id: 'p_' + Date.now(),
     name: name.trim(),
     tasks: [
-      {
-        id: 't-' + Date.now(),
-        title: 'Project Kickoff',
-        status: 'To Do',
-        owner: 'Unassigned',
-        start: formatDMY(today),
-        end: formatDMY(nextWeek),
-        dep: ''
-      }
+      { id: 't_' + Date.now(), name: 'Project Kickoff', category: 'Planning', owner: 'Lead', status: 'To Do', start: s, end: e, dependsOn: '' }
     ]
   };
-  projects.push(newProj);
+  state.projects.push(proj);
   saveState();
-  renderDashboard();
+  openProject(proj.id);
 }
 
-function deleteProject(id) {
+function deleteProject(id, ev) {
+  ev.stopPropagation();
   if (!confirm('Delete this project permanently?')) return;
-  projects = projects.filter(p => p.id !== id);
+  state.projects = state.projects.filter(p => p.id !== id);
   saveState();
-  renderDashboard();
+  render();
 }
 
-function openProject(id) {
-  currentProjectId = id;
-  const proj = projects.find(p => p.id === id);
-  if (!proj) return;
-  document.getElementById('dashboard-view').style.display = 'none';
-  document.getElementById('workspace-view').style.display = 'flex';
-  document.getElementById('back-btn').style.display = 'inline-block';
-  document.getElementById('workspace-controls').style.display = 'flex';
-  document.getElementById('page-title').textContent = proj.name;
-  switchView(currentView);
-}
+function render() {
+  const app = document.getElementById('app');
+  const proj = getActiveProject();
+  document.getElementById('btnHome').style.display = proj ? '' : 'none';
+  document.getElementById('viewTabs').style.display = proj ? '' : 'none';
+  document.getElementById('btnAddTask').style.display = proj ? '' : 'none';
+  document.getElementById('btnExportCsv').style.display = proj ? '' : 'none';
+  document.getElementById('activeProjTitle').textContent = proj ? proj.name : '';
 
-function switchView(view) {
-  currentView = view;
-  document.getElementById('tab-kanban').classList.toggle('active-tab', view === 'kanban');
-  document.getElementById('tab-gantt').classList.toggle('active-tab', view === 'gantt');
-  document.getElementById('kanban-container').style.display = view === 'kanban' ? 'flex' : 'none';
-  document.getElementById('gantt-container').style.display = view === 'gantt' ? 'block' : 'none';
-  if (view === 'kanban') renderKanban();
-  else renderGantt();
-}
-
-function getCurrentProject() {
-  return projects.find(p => p.id === currentProjectId);
-}
-
-/* KANBAN */
-function renderKanban() {
-  const proj = getCurrentProject();
-  if (!proj) return;
-  const container = document.getElementById('kanban-container');
-  container.innerHTML = '';
-
-  const alertTasks = proj.tasks.filter(t => getTaskUrgency(t) !== 'normal');
-  const alertCol = buildKanbanColumn('⚠️ Past Deadline / Warning', alertTasks, true, null);
-  container.appendChild(alertCol);
-
-  const stages = [
-    { key: 'Pending', label: 'Pending' },
-    { key: 'To Do', label: 'To Do' },
-    { key: 'In Progress', label: 'In Progress' },
-    { key: 'Completed', label: 'Completed' }
-  ];
-
-  stages.forEach(st => {
-    const list = proj.tasks.filter(t => t.status === st.key);
-    container.appendChild(buildKanbanColumn(st.label, list, false, st.key));
-  });
-}
-
-function buildKanbanColumn(title, tasks, isAlertCol, statusKey) {
-  const col = document.createElement('div');
-  col.className = 'kanban-col' + (isAlertCol ? ' alert-col' : '');
-  col.innerHTML = `
-    <div class="col-header">
-      <span>${title}</span>
-      <span class="badge">${tasks.length}</span>
-    </div>
-    <div class="col-body"></div>
-  `;
-  const body = col.querySelector('.col-body');
-
-  if (!isAlertCol && statusKey) {
-    body.ondragover = e => e.preventDefault();
-    body.ondrop = e => {
-      e.preventDefault();
-      const taskId = e.dataTransfer.getData('text/plain');
-      const proj = getCurrentProject();
-      const task = proj.tasks.find(t => t.id === taskId);
-      if (task) {
-        task.status = statusKey;
-        saveState();
-        renderKanban();
-      }
-    };
+  if (!proj) {
+    renderDashboard(app);
+    return;
   }
-
-  tasks.forEach(task => {
-    const card = document.createElement('div');
-    card.className = 'task-card';
-    card.style.borderLeftColor = getTaskColor(task);
-    card.draggable = true;
-    card.ondragstart = e => e.dataTransfer.setData('text/plain', task.id);
-    card.onclick = () => openTaskModal(task.id);
-
-    const urgency = getTaskUrgency(task);
-    const urgencyTag = urgency === 'overdue'
-      ? '<span class="pill" style="background:#fee2e2;color:#b91c1c;">Overdue</span>'
-      : (urgency === 'warning' ? '<span class="pill" style="background:#fef9c3;color:#854d0e;">Due ≤7d</span>' : '');
-
-    card.innerHTML = `
-      <div class="task-title">${escapeHtml(task.title)}</div>
-      <div class="task-info">
-        <span>👤 ${escapeHtml(task.owner || 'Unassigned')}</span>
-        <span>📅 ${task.start} → ${task.end}</span>
-      </div>
-      <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">
-        <span class="pill">${task.status}</span>
-        ${urgencyTag}
-      </div>
-    `;
-    body.appendChild(card);
-  });
-
-  return col;
+  document.getElementById('tabKanban').classList.toggle('active', currentView === 'kanban');
+  document.getElementById('tabGantt').classList.toggle('active', currentView === 'gantt');
+  if (currentView === 'kanban') renderKanban(app, proj);
+  else renderGantt(app, proj);
 }
 
-/* GANTT */
-function renderGantt() {
-  const proj = getCurrentProject();
-  if (!proj) return;
+function renderDashboard(app) {
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+    <div><h2 style="margin:0;">Projects Dashboard</h2><p style="margin:4px 0 0;color:var(--muted);font-size:13px;">Create a new project or import an existing JSON schedule backup.</p></div>
+    <button class="btn btn-primary" onclick="createNewProject()">+ New Project</button>
+  </div>`;
 
-  const sortedTasks = getSortedTasks(proj);
-  renderGanttGrid(sortedTasks, proj.tasks);
-  renderGanttTimeline(sortedTasks);
-
-  const gridBody = document.getElementById('grid-body');
-  const ganttRight = document.getElementById('gantt-right');
-  gridBody.onscroll = () => { ganttRight.scrollTop = gridBody.scrollTop; };
-  ganttRight.onscroll = () => { gridBody.scrollTop = ganttRight.scrollTop; };
-}
-
-function renderGanttGrid(sortedTasks, allTasks) {
-  const header = document.getElementById('grid-header');
-  const body = document.getElementById('grid-body');
-
-  const cols = [
-    { key: 'title', label: 'Task / Description' },
-    { key: 'owner', label: 'Owner' },
-    { key: 'start', label: 'Start' },
-    { key: 'end', label: 'End' },
-    { key: 'days', label: 'Days' },
-    { key: 'dep', label: 'Depends On' }
-  ];
-
-  header.innerHTML = '';
-  cols.forEach(c => {
-    const th = document.createElement('div');
-    th.className = 'th-cell';
-    th.style.width = colWidths[c.key] + 'px';
-    th.innerHTML = `<span>${c.label}</span><div class="col-resizer" data-col="${c.key}"></div>`;
-    header.appendChild(th);
-  });
-
-  header.querySelectorAll('.col-resizer').forEach(resizer => {
-    resizer.onmousedown = e => {
-      e.stopPropagation();
-      const colKey = resizer.dataset.col;
-      const startX = e.clientX;
-      const startW = colWidths[colKey];
-
-      const onMove = ev => {
-        const newW = Math.max(45, startW + (ev.clientX - startX));
-        colWidths[colKey] = newW;
-        localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(colWidths));
-        renderGanttGrid(getSortedTasks(getCurrentProject()), getCurrentProject().tasks);
-      };
-      const onUp = () => {
-        window.removeEventListener('mousemove', onMove);
-        window.removeEventListener('mouseup', onUp);
-      };
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
-    };
-  });
-
-  body.innerHTML = '';
-  sortedTasks.forEach(task => {
-    const row = document.createElement('div');
-    row.className = 'grid-row';
-
-    const daysVal = diffDaysInclusive(task.start, task.end);
-    const depOptions = [`<option value="">None</option>`]
-      .concat(allTasks.filter(t => t.id !== task.id).map(t =>
-        `<option value="${t.id}" ${task.dep === t.id ? 'selected' : ''}>${escapeHtml(t.title)}</option>`
-      )).join('');
-
-    row.innerHTML = `
-      <div class="td-cell" style="width:${colWidths.title}px">
-        <input type="text" value="${escapeAttr(task.title)}" onchange="updateTaskField('${task.id}', 'title', this.value)">
+  if (state.projects.length === 0) {
+    html += `<div class="empty-box">
+      <h3 style="margin-top:0;">No Projects Yet</h3>
+      <p style="color:var(--muted);font-size:14px;">Start a fresh board or click <b>Import JSON</b> at the top right to load a saved schedule file.</p>
+      <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;">
+        <button class="btn btn-primary" onclick="createNewProject()">+ Create First Project</button>
+        <button class="btn" onclick="document.getElementById('fileImport').click()">Import JSON File</button>
       </div>
-      <div class="td-cell" style="width:${colWidths.owner}px">
-        <input type="text" value="${escapeAttr(task.owner)}" onchange="updateTaskField('${task.id}', 'owner', this.value)">
-      </div>
-      <div class="td-cell" style="width:${colWidths.start}px">
-        <input type="text" value="${escapeAttr(task.start)}" onchange="updateTaskField('${task.id}', 'start', this.value)">
-      </div>
-      <div class="td-cell" style="width:${colWidths.end}px">
-        <input type="text" value="${escapeAttr(task.end)}" onchange="updateTaskField('${task.id}', 'end', this.value)">
-      </div>
-      <div class="td-cell" style="width:${colWidths.days}px">
-        <input type="number" min="1" value="${daysVal}" onchange="updateTaskDuration('${task.id}', this.value)">
-      </div>
-      <div class="td-cell" style="width:${colWidths.dep}px">
-        <select onchange="updateTaskField('${task.id}', 'dep', this.value)">${depOptions}</select>
-      </div>
-    `;
-    body.appendChild(row);
-  });
-}
-
-function updateTaskField(taskId, field, value) {
-  const proj = getCurrentProject();
-  const task = proj.tasks.find(t => t.id === taskId);
-  if (!task) return;
-
-  if (field === 'start' || field === 'end') {
-    const parsed = parseDMY(value);
-    if (!parsed) {
-      alert('Please use D/M/YYYY format (e.g., 4/5/2026)');
-      renderGantt();
-      return;
-    }
-    task[field] = formatDMY(parsed);
-    const s = parseDMY(task.start);
-    const e = parseDMY(task.end);
-    if (s && e && e < s) {
-      task.end = task.start;
-    }
+    </div>`;
   } else {
-    task[field] = value;
+    html += `<div class="grid-projects">`;
+    state.projects.forEach(p => {
+      const done = p.tasks.filter(t => t.status === 'Completed').length;
+      html += `<div class="proj-card" onclick="openProject('${p.id}')" style="cursor:pointer;">
+        <div>
+          <h3>${esc(p.name)}</h3>
+          <div style="font-size:13px;color:var(--muted);">${p.tasks.length} tasks &bull; ${done} completed</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="pill" style="color:var(--primary);">Open Board &rarr;</span>
+          <button class="btn btn-danger" onclick="deleteProject('${p.id}', event)">Delete</button>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
   }
-
-  saveState();
-  renderGantt();
+  app.innerHTML = html;
 }
 
-function updateTaskDuration(taskId, newDaysRaw) {
-  const proj = getCurrentProject();
-  const task = proj.tasks.find(t => t.id === taskId);
-  if (!task) return;
-  const days = Math.max(1, parseInt(newDaysRaw, 10) || 1);
-  const startDt = parseDMY(task.start);
-  if (startDt) {
-    const newEndDt = addDays(startDt, days - 1);
-    task.end = formatDMY(newEndDt);
-  }
-  saveState();
-  renderGantt();
-}
-
-function getMonday(d) {
-  const dt = new Date(d);
-  const day = dt.getDay();
-  const diff = dt.getDate() - day + (day === 0 ? -6 : 1);
-  dt.setDate(diff);
-  dt.setHours(0, 0, 0, 0);
-  return dt;
-}
-
-function getISOWeek(d) {
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNum = date.getUTCDay() || 7;
-  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
-}
-
-function renderGanttTimeline(sortedTasks) {
-  const tHeader = document.getElementById('timeline-header');
-  const tCanvas = document.getElementById('timeline-canvas');
-
-  let minDate = new Date();
-  let maxDate = addDays(minDate, 60);
-
-  const validDates = [];
-  sortedTasks.forEach(t => {
-    const s = parseDMY(t.start);
-    const e = parseDMY(t.end);
-    if (s) validDates.push(s);
-    if (e) validDates.push(e);
+function renderKanban(app, proj) {
+  const tasks = sortTasksByDate(proj.tasks);
+  const warnTasks = tasks.filter(t => {
+    const v = getTaskVisuals(t);
+    return v.urgency === 'overdue' || v.urgency === 'warning';
   });
+  const todoTasks = tasks.filter(t => t.status === 'Pending' || t.status === 'To Do');
+  const progTasks = tasks.filter(t => t.status === 'In Progress');
+  const doneTasks = tasks.filter(t => t.status === 'Completed');
 
-  if (validDates.length > 0) {
-    minDate = new Date(Math.min(...validDates));
-    maxDate = new Date(Math.max(...validDates));
-  }
-
-  const startMonday = addDays(getMonday(minDate), -7);
-  const endMonday = addDays(getMonday(maxDate), 14);
-  const totalWeeks = Math.max(4, Math.ceil((endMonday - startMonday) / (7 * 86400000)));
-  const weekW = 84;
-  const pxPerDay = weekW / 7;
-  const totalWidth = totalWeeks * weekW;
-  const totalHeight = Math.max(sortedTasks.length * 44, 200);
-
-  tHeader.style.width = totalWidth + 'px';
-  tHeader.innerHTML = '';
-  for (let w = 0; w < totalWeeks; w++) {
-    const wkStart = addDays(startMonday, w * 7);
-    const wkNum = getISOWeek(wkStart);
-    const col = document.createElement('div');
-    col.className = 'week-col-header';
-    col.innerHTML = `<strong>W${wkNum}</strong><span>${formatDDMM(wkStart)}</span>`;
-    tHeader.appendChild(col);
-  }
-
-  tCanvas.style.width = totalWidth + 'px';
-  tCanvas.style.height = totalHeight + 'px';
-  tCanvas.innerHTML = '';
-
-  sortedTasks.forEach(() => {
-    const rowBg = document.createElement('div');
-    rowBg.className = 'timeline-row-bg';
-    for (let w = 0; w < totalWeeks; w++) {
-      const cell = document.createElement('div');
-      cell.className = 'timeline-week-cell';
-      rowBg.appendChild(cell);
-    }
-    tCanvas.appendChild(rowBg);
-  });
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (today >= startMonday && today <= endMonday) {
-    const todayOffsetDays = (today - startMonday) / 86400000;
-    const todayLine = document.createElement('div');
-    todayLine.className = 'today-line';
-    todayLine.style.left = (todayOffsetDays * pxPerDay) + 'px';
-    tCanvas.appendChild(todayLine);
-  }
-
-  const barCoords = {};
-
-  sortedTasks.forEach((task, rowIdx) => {
-    const s = parseDMY(task.start) || startMonday;
-    const e = parseDMY(task.end) || s;
-    const startOffsetDays = (s - startMonday) / 86400000;
-    const durationDays = Math.max(1, Math.round((e - s) / 86400000) + 1);
-
-    const leftPx = startOffsetDays * pxPerDay;
-    const widthPx = Math.max(24, durationDays * pxPerDay);
-    const topPx = rowIdx * 44 + 7;
-
-    barCoords[task.id] = {
-      left: leftPx,
-      right: leftPx + widthPx,
-      centerY: rowIdx * 44 + 22
-    };
-
-    const bar = document.createElement('div');
-    bar.className = 'gantt-bar';
-    bar.style.left = leftPx + 'px';
-    bar.style.width = widthPx + 'px';
-    bar.style.top = topPx + 'px';
-    bar.style.background = getTaskColor(task);
-    bar.title = `${task.title} (${task.start} - ${task.end})`;
-
-    bar.innerHTML = `
-      <div class="resize-handle left"></div>
-      <span class="bar-date">${formatDDMM(s)}</span>
-      <span class="bar-label">${escapeHtml(task.title)}</span>
-      <span class="bar-date">${formatDDMM(e)}</span>
-      <div class="resize-handle right"></div>
-    `;
-
-    setupBarDrag(bar, task, pxPerDay, s, e);
-    tCanvas.appendChild(bar);
-  });
-
-  // Thin dashed dependency arrows
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('class', 'dep-layer');
-  svg.setAttribute('width', totalWidth);
-  svg.setAttribute('height', totalHeight);
-
-  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-  defs.innerHTML = `
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#475569"/>
-    </marker>
-  `;
-  svg.appendChild(defs);
-
-  sortedTasks.forEach(task => {
-    if (!task.dep || !barCoords[task.dep] || !barCoords[task.id]) return;
-    const from = barCoords[task.dep];
-    const to = barCoords[task.id];
-
-    const startX = from.right;
-    const startY = from.centerY;
-    const endX = to.left;
-    const endY = to.centerY;
-
-    const midX = startX + 12;
-    let pathD = '';
-    if (endX >= startX + 16) {
-      pathD = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
-    } else {
-      const detourY = startY < endY ? startY + 20 : startY - 20;
-      const preX = endX - 10;
-      pathD = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${detourY} L ${preX} ${detourY} L ${preX} ${endY} L ${endX} ${endY}`;
-    }
-
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', pathD);
-    path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', '#475569');
-    path.setAttribute('stroke-width', '1.25');
-    path.setAttribute('stroke-dasharray', '4,3');
-    path.setAttribute('marker-end', 'url(#arrow)');
-    svg.appendChild(path);
-  });
-
-  tCanvas.appendChild(svg);
-}
-
-function setupBarDrag(bar, task, pxPerDay, origStart, origEnd) {
-  let mode = null;
-  let startX = 0;
-
-  bar.onmousedown = e => {
-    e.stopPropagation();
-    startX = e.clientX;
-    if (e.target.classList.contains('left')) mode = 'left';
-    else if (e.target.classList.contains('right')) mode = 'right';
-    else mode = 'move';
-
-    const origLeft = parseFloat(bar.style.left);
-    const origWidth = parseFloat(bar.style.width);
-    const startSpan = bar.querySelectorAll('.bar-date')[0];
-    const endSpan = bar.querySelectorAll('.bar-date')[1];
-
-    const onMove = ev => {
-      const deltaDays = Math.round((ev.clientX - startX) / pxPerDay);
-      if (mode === 'move') {
-        bar.style.left = (origLeft + deltaDays * pxPerDay) + 'px';
-        startSpan.textContent = formatDDMM(addDays(origStart, deltaDays));
-        endSpan.textContent = formatDDMM(addDays(origEnd, deltaDays));
-      } else if (mode === 'right') {
-        const newEnd = addDays(origEnd, deltaDays);
-        if (newEnd >= origStart) {
-          const days = Math.round((newEnd - origStart) / 86400000) + 1;
-          bar.style.width = Math.max(24, days * pxPerDay) + 'px';
-          endSpan.textContent = formatDDMM(newEnd);
-        }
-      } else if (mode === 'left') {
-        const newStart = addDays(origStart, deltaDays);
-        if (newStart <= origEnd) {
-          const days = Math.round((origEnd - newStart) / 86400000) + 1;
-          bar.style.left = (origLeft + deltaDays * pxPerDay) + 'px';
-          bar.style.width = Math.max(24, days * pxPerDay) + 'px';
-          startSpan.textContent = formatDDMM(newStart);
-        }
-      }
-    };
-
-    const onUp = ev => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      const deltaDays = Math.round((ev.clientX - startX) / pxPerDay);
-      if (deltaDays === 0) {
-        openTaskModal(task.id);
-        return;
-      }
-      if (mode === 'move') {
-        task.start = formatDMY(addDays(origStart, deltaDays));
-        task.end = formatDMY(addDays(origEnd, deltaDays));
-      } else if (mode === 'right') {
-        const newEnd = addDays(origEnd, deltaDays);
-        task.end = formatDMY(newEnd < origStart ? origStart : newEnd);
-      } else if (mode === 'left') {
-        const newStart = addDays(origStart, deltaDays);
-        task.start = formatDMY(newStart > origEnd ? origEnd : newStart);
-      }
-      saveState();
-      renderGantt();
-    };
-
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+  const renderCard = (t, showStatusBadge) => {
+    const v = getTaskVisuals(t);
+    const days = calcDays(t.start, t.end);
+    return `<div class="k-card" draggable="true" ondragstart="onDragStart(event,'${t.id}')" onclick="openTaskModal('${t.id}')" style="border-left-color:${v.color};">
+      <div class="k-card-title">${esc(t.name)}</div>
+      <div class="k-meta">
+        ${showStatusBadge ? `<span class="pill">${esc(t.status)}</span>` : ''}
+        ${t.category ? `<span class="pill">${esc(t.category)}</span>` : ''}
+        ${t.owner ? `<span>&#128100; ${esc(t.owner)}</span>` : ''}
+        <span>&#128197; ${esc(t.start)} - ${esc(t.end)} (${days}d)</span>
+      </div>
+    </div>`;
   };
+
+  app.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div class="legend">
+        <span class="leg-item"><i class="dot" style="background:var(--c-pending)"></i>Pending</span>
+        <span class="leg-item"><i class="dot" style="background:var(--c-todo)"></i>To Do</span>
+        <span class="leg-item"><i class="dot" style="background:var(--c-progress)"></i>In Progress</span>
+        <span class="leg-item"><i class="dot" style="background:var(--c-done)"></i>Completed</span>
+        <span class="leg-item"><i class="dot" style="background:var(--c-warn)"></i>Near Deadline (&le;7d)</span>
+        <span class="leg-item"><i class="dot" style="background:var(--c-over)"></i>Past Deadline</span>
+      </div>
+    </div>
+    <div class="kanban-board">
+      <div class="k-col warn-col">
+        <div class="k-col-head"><span>&#9888; Past Deadline / Warning</span><span class="badge">${warnTasks.length}</span></div>
+        ${warnTasks.map(t => renderCard(t, true)).join('') || '<div style="font-size:12px;color:var(--muted);padding:8px;">No urgent tasks</div>'}
+      </div>
+      <div class="k-col" ondragover="event.preventDefault()" ondrop="onDropCol(event,'To Do')">
+        <div class="k-col-head"><span>To Do / Pending</span><span class="badge">${todoTasks.length}</span></div>
+        ${todoTasks.map(t => renderCard(t, true)).join('')}
+      </div>
+      <div class="k-col" ondragover="event.preventDefault()" ondrop="onDropCol(event,'In Progress')">
+        <div class="k-col-head"><span>In Progress</span><span class="badge">${progTasks.length}</span></div>
+        ${progTasks.map(t => renderCard(t, false)).join('')}
+      </div>
+      <div class="k-col" ondragover="event.preventDefault()" ondrop="onDropCol(event,'Completed')">
+        <div class="k-col-head"><span>Done</span><span class="badge">${doneTasks.length}</span></div>
+        ${doneTasks.map(t => renderCard(t, false)).join('')}
+      </div>
+    </div>`;
 }
 
-/* Splitter between spreadsheet and timeline */
-const splitter = document.getElementById('gantt-splitter');
-splitter.onmousedown = e => {
-  const leftPane = document.getElementById('gantt-left');
-  const startX = e.clientX;
-  const startW = leftPane.offsetWidth;
-  const onMove = ev => {
-    leftPane.style.width = Math.max(260, startW + (ev.clientX - startX)) + 'px';
+let draggedTaskId = null;
+function onDragStart(ev, id) { draggedTaskId = id; }
+function onDropCol(ev, newStatus) {
+  ev.preventDefault();
+  const proj = getActiveProject();
+  if (!proj || !draggedTaskId) return;
+  const t = proj.tasks.find(x => x.id === draggedTaskId);
+  if (t) { t.status = newStatus; saveState(); render(); }
+}
+
+function getISOWeek(dt) {
+  const d = new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / DAY_MS) + 1) / 7);
+}
+
+function renderGantt(app, proj) {
+  const tasks = sortTasksByDate(proj.tasks);
+  let minDt = new Date(), maxDt = new Date(Date.now() + 28 * DAY_MS);
+  if (tasks.length > 0) {
+    const starts = tasks.map(t => parseDMY(t.start)).filter(Boolean);
+    const ends = tasks.map(t => parseDMY(t.end)).filter(Boolean);
+    if (starts.length) minDt = new Date(Math.min(...starts));
+    if (ends.length) maxDt = new Date(Math.max(...ends));
+  }
+  // Align minDt to Monday
+  const day = minDt.getDay();
+  const diffToMon = (day === 0 ? -6 : 1 - day);
+  const timelineStart = new Date(minDt.getFullYear(), minDt.getMonth(), minDt.getDate() + diffToMon - 7);
+  const timelineEnd = new Date(maxDt.getFullYear(), maxDt.getMonth(), maxDt.getDate() + 14);
+  const totalDays = Math.max(28, Math.ceil((timelineEnd - timelineStart) / DAY_MS));
+  const totalWeeks = Math.ceil(totalDays / 7);
+  const canvasWidth = totalWeeks * 7 * PX_PER_DAY;
+  const canvasHeight = Math.max(tasks.length * 44, 300);
+
+  // Build week headers
+  let weekHeaders = '';
+  let weekCells = '';
+  for (let w = 0; w < totalWeeks; w++) {
+    const wDate = new Date(timelineStart.getTime() + w * 7 * DAY_MS);
+    const wNum = getISOWeek(wDate);
+    const wPx = 7 * PX_PER_DAY;
+    weekHeaders += `<div class="g-week" style="width:${wPx}px;"><b>W${wNum}</b><span>${formatDM(wDate)}</span></div>`;
+    weekCells += `<div class="g-week-cell" style="width:${wPx}px;"></div>`;
+  }
+
+  // Table rows
+  let rowsHtml = '';
+  tasks.forEach((t, idx) => {
+    const days = calcDays(t.start, t.end);
+    const depOpts = `<option value="">None</option>` + tasks.filter(x => x.id !== t.id).map(x => `<option value="${x.id}" ${t.dependsOn === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
+    rowsHtml += `<tr>
+      <td><input class="g-input" value="${esc(t.name)}" onchange="updateTaskField('${t.id}','name',this.value)" title="${esc(t.name)}"></td>
+      <td><input class="g-input" value="${esc(t.owner || '')}" onchange="updateTaskField('${t.id}','owner',this.value)"></td>
+      <td><input class="g-input" value="${esc(t.start)}" onchange="updateTaskField('${t.id}','start',this.value)"></td>
+      <td><input class="g-input" value="${esc(t.end)}" onchange="updateTaskField('${t.id}','end',this.value)"></td>
+      <td><input class="g-input" type="number" min="1" value="${days}" onchange="updateTaskDays('${t.id}',this.value)"></td>
+      <td><select class="g-input" onchange="updateTaskField('${t.id}','dependsOn',this.value)">${depOpts}</select></td>
+    </tr>`;
+  });
+
+  // Bars and coordinates
+  const barCoords = {};
+  let barsHtml = '';
+  tasks.forEach((t, idx) => {
+    const s = parseDMY(t.start) || timelineStart;
+    const e = parseDMY(t.end) || s;
+    const left = Math.max(0, Math.round((s - timelineStart) / DAY_MS) * PX_PER_DAY);
+    const days = Math.max(1, Math.round((e - s) / DAY_MS) + 1);
+    const width = Math.max(PX_PER_DAY, days * PX_PER_DAY);
+    const top = idx * 44 + 6;
+    const v = getTaskVisuals(t);
+    barCoords[t.id] = { left, right: left + width, centerY: idx * 44 + 22 };
+    barsHtml += `<div class="g-bar ${v.darkText ? 'dark-text' : ''}" id="bar_${t.id}" style="left:${left}px;width:${width}px;top:${top}px;background:${v.color};" onmousedown="startBarDrag(event,'${t.id}','move')" ondblclick="openTaskModal('${t.id}')">
+      <div class="g-handle left" onmousedown="startBarDrag(event,'${t.id}','left')"></div>
+      <span class="g-bar-date">${formatDM(s)}</span>
+      <span class="g-bar-label" title="${esc(t.name)}">${esc(t.name)}</span>
+      <span class="g-bar-date">${formatDM(e)}</span>
+      <div class="g-handle right" onmousedown="startBarDrag(event,'${t.id}','right')"></div>
+    </div>`;
+  });
+
+  // Dashed Dependency Arrows
+  let arrowsSvg = `<svg class="dep-layer" width="${canvasWidth}" height="${canvasHeight}">
+    <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#475569"/></marker></defs>`;
+  tasks.forEach(t => {
+    if (t.dependsOn && barCoords[t.dependsOn] && barCoords[t.id]) {
+      const from = barCoords[t.dependsOn];
+      const to = barCoords[t.id];
+      const x1 = from.right, y1 = from.centerY;
+      const x2 = to.left, y2 = to.centerY;
+      const midX = x1 + 10;
+      const dPath = x2 >= x1 + 14
+        ? `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`
+        : `M ${x1} ${y1} L ${x1 + 10} ${y1} L ${x1 + 10} ${(y1 + y2) / 2} L ${x2 - 10} ${(y1 + y2) / 2} L ${x2 - 10} ${y2} L ${x2} ${y2}`;
+      arrowsSvg += `<path d="${dPath}" fill="none" stroke="#475569" stroke-width="1.25" stroke-dasharray="4,3" marker-end="url(#arrow)"/>`;
+    }
+  });
+  arrowsSvg += `</svg>`;
+
+  // Today line
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayLeft = Math.round((today - timelineStart) / DAY_MS) * PX_PER_DAY;
+  const todayHtml = (todayLeft >= 0 && todayLeft <= canvasWidth) ? `<div class="today-line" style="left:${todayLeft}px;" title="Today"></div>` : '';
+
+  app.innerHTML = `<div class="gantt-wrap">
+    <div class="g-left">
+      <table class="g-table">
+        <thead>
+          <tr>
+            <th style="width:${colWidths.name}px;">Task / Description<div class="resizer" onmousedown="initResize(event,'name')"></div></th>
+            <th style="width:${colWidths.owner}px;">Owner<div class="resizer" onmousedown="initResize(event,'owner')"></div></th>
+            <th style="width:${colWidths.start}px;">Start<div class="resizer" onmousedown="initResize(event,'start')"></div></th>
+            <th style="width:${colWidths.end}px;">End<div class="resizer" onmousedown="initResize(event,'end')"></div></th>
+            <th style="width:${colWidths.days}px;">Days<div class="resizer" onmousedown="initResize(event,'days')"></div></th>
+            <th style="width:${colWidths.dep}px;">Depends On<div class="resizer" onmousedown="initResize(event,'dep')"></div></th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+    <div class="g-right" id="gRight">
+      <div class="g-timeline-head" style="width:${canvasWidth}px;">${weekHeaders}</div>
+      <div class="g-canvas" style="width:${canvasWidth}px;height:${canvasHeight}px;">
+        ${tasks.map(() => `<div class="g-row-bg" style="width:${canvasWidth}px;">${weekCells}</div>`).join('')}
+        ${todayHtml}
+        ${arrowsSvg}
+        ${barsHtml}
+      </div>
+    </div>
+  </div>`;
+}
+
+function updateTaskField(id, field, val) {
+  const proj = getActiveProject();
+  const t = proj?.tasks.find(x => x.id === id);
+  if (!t) return;
+  if (field === 'start' || field === 'end') {
+    const parsed = parseDMY(val);
+    if (!parsed) { alert('Please use D/M/YYYY format (e.g. 4/5/2026)'); render(); return; }
+    t[field] = formatDMY(parsed);
+    if (parseDMY(t.end) < parseDMY(t.start)) t.end = t.start;
+  } else {
+    t[field] = val;
+  }
+  saveState();
+  render();
+}
+
+function updateTaskDays(id, daysVal) {
+  const proj = getActiveProject();
+  const t = proj?.tasks.find(x => x.id === id);
+  if (!t) return;
+  const d = Math.max(1, parseInt(daysVal, 10) || 1);
+  t.end = addDaysStr(t.start, d);
+  saveState();
+  render();
+}
+
+// Column Resizer
+function initResize(ev, colKey) {
+  ev.preventDefault();
+  const startX = ev.clientX;
+  const startW = colWidths[colKey];
+  const onMove = (e) => {
+    colWidths[colKey] = Math.max(45, startW + (e.clientX - startX));
+    localStorage.setItem(COL_KEY, JSON.stringify(colWidths));
+    render();
   };
   const onUp = () => {
     window.removeEventListener('mousemove', onMove);
@@ -1274,115 +561,174 @@ splitter.onmousedown = e => {
   };
   window.addEventListener('mousemove', onMove);
   window.addEventListener('mouseup', onUp);
-};
+}
 
-/* Task Modal */
-function openTaskModal(taskId = null) {
-  const proj = getCurrentProject();
+// Gantt Bar Dragging
+function startBarDrag(ev, taskId, mode) {
+  ev.stopPropagation();
+  const proj = getActiveProject();
+  const t = proj?.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  const startX = ev.clientX;
+  const origStart = parseDMY(t.start);
+  const origEnd = parseDMY(t.end);
+  const barEl = document.getElementById('bar_' + taskId);
+  const origLeft = parseInt(barEl.style.left, 10);
+  const origWidth = parseInt(barEl.style.width, 10);
+  let deltaDays = 0;
+
+  const onMove = (e) => {
+    deltaDays = Math.round((e.clientX - startX) / PX_PER_DAY);
+    if (mode === 'move') {
+      barEl.style.left = Math.max(0, origLeft + deltaDays * PX_PER_DAY) + 'px';
+    } else if (mode === 'right') {
+      barEl.style.width = Math.max(PX_PER_DAY, origWidth + deltaDays * PX_PER_DAY) + 'px';
+    } else if (mode === 'left') {
+      const maxShift = Math.round((origEnd - origStart) / DAY_MS);
+      const clamped = Math.min(deltaDays, maxShift);
+      barEl.style.left = Math.max(0, origLeft + clamped * PX_PER_DAY) + 'px';
+      barEl.style.width = Math.max(PX_PER_DAY, origWidth - clamped * PX_PER_DAY) + 'px';
+    }
+  };
+
+  const onUp = () => {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    if (deltaDays !== 0) {
+      if (mode === 'move') {
+        t.start = formatDMY(new Date(origStart.getTime() + deltaDays * DAY_MS));
+        t.end = formatDMY(new Date(origEnd.getTime() + deltaDays * DAY_MS));
+      } else if (mode === 'right') {
+        const newEnd = new Date(Math.max(origStart.getTime(), origEnd.getTime() + deltaDays * DAY_MS));
+        t.end = formatDMY(newEnd);
+      } else if (mode === 'left') {
+        const newStart = new Date(Math.min(origEnd.getTime(), origStart.getTime() + deltaDays * DAY_MS));
+        t.start = formatDMY(newStart);
+      }
+      saveState();
+    }
+    render();
+  };
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+}
+
+// Modal CRUD
+function openTaskModal(taskId) {
+  const proj = getActiveProject();
   if (!proj) return;
-
-  const depSelect = document.getElementById('edit-dep');
-  depSelect.innerHTML = `<option value="">None</option>` + proj.tasks
-    .filter(t => t.id !== taskId)
-    .map(t => `<option value="${t.id}">${escapeHtml(t.title)}</option>`)
-    .join('');
-
-  if (taskId) {
-    const task = proj.tasks.find(t => t.id === taskId);
-    document.getElementById('modal-title').textContent = 'Edit Task';
-    document.getElementById('edit-task-id').value = task.id;
-    document.getElementById('edit-title').value = task.title;
-    document.getElementById('edit-status').value = task.status;
-    document.getElementById('edit-owner').value = task.owner;
-    document.getElementById('edit-start').value = task.start;
-    document.getElementById('edit-end').value = task.end;
-    depSelect.value = task.dep || '';
-    document.getElementById('delete-task-btn').style.display = 'inline-block';
-  } else {
-    const today = new Date();
-    document.getElementById('modal-title').textContent = 'Add New Task';
-    document.getElementById('edit-task-id').value = '';
-    document.getElementById('edit-title').value = '';
-    document.getElementById('edit-status').value = 'To Do';
-    document.getElementById('edit-owner').value = '';
-    document.getElementById('edit-start').value = formatDMY(today);
-    document.getElementById('edit-end').value = formatDMY(addDays(today, 4));
-    depSelect.value = '';
-    document.getElementById('delete-task-btn').style.display = 'none';
-  }
-
-  document.getElementById('task-modal').style.display = 'flex';
+  const isNew = !taskId;
+  const t = isNew ? { id: '', name: '', category: '', owner: '', status: 'To Do', start: formatDMY(new Date()), end: addDaysStr(formatDMY(new Date()), 4), dependsOn: '' } : proj.tasks.find(x => x.id === taskId);
+  document.getElementById('modalHeading').textContent = isNew ? 'Add New Task' : 'Edit Task';
+  document.getElementById('mTaskId').value = t.id;
+  document.getElementById('mName').value = t.name;
+  document.getElementById('mCat').value = t.category || '';
+  document.getElementById('mOwner').value = t.owner || '';
+  document.getElementById('mStatus').value = t.status || 'To Do';
+  document.getElementById('mStart').value = t.start;
+  document.getElementById('mEnd').value = t.end;
+  document.getElementById('btnDelTask').style.display = isNew ? 'none' : '';
+  const depSel = document.getElementById('mDep');
+  depSel.innerHTML = `<option value="">None</option>` + proj.tasks.filter(x => x.id !== t.id).map(x => `<option value="${x.id}" ${t.dependsOn === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
+  document.getElementById('taskModal').classList.add('open');
 }
 
 function closeTaskModal() {
-  document.getElementById('task-modal').style.display = 'none';
+  document.getElementById('taskModal').classList.remove('open');
 }
 
 function saveTaskModal() {
-  const proj = getCurrentProject();
-  const id = document.getElementById('edit-task-id').value;
-  const title = document.getElementById('edit-title').value.trim();
-  const status = document.getElementById('edit-status').value;
-  const owner = document.getElementById('edit-owner').value.trim();
-  const start = parseDMY(document.getElementById('edit-start').value);
-  const end = parseDMY(document.getElementById('edit-end').value);
-  const dep = document.getElementById('edit-dep').value;
-
-  if (!title) { alert('Please enter a task description.'); return; }
-  if (!start || !end) { alert('Please enter valid dates in D/M/YYYY format.'); return; }
-
-  const finalEnd = end < start ? start : end;
-
+  const proj = getActiveProject();
+  const id = document.getElementById('mTaskId').value;
+  const name = document.getElementById('mName').value.trim();
+  const s = parseDMY(document.getElementById('mStart').value);
+  const e = parseDMY(document.getElementById('mEnd').value);
+  if (!name || !s || !e) { alert('Enter a task name and valid D/M/YYYY start/end dates.'); return; }
+  const data = {
+    name,
+    category: document.getElementById('mCat').value.trim(),
+    owner: document.getElementById('mOwner').value.trim(),
+    status: document.getElementById('mStatus').value,
+    start: formatDMY(s),
+    end: formatDMY(e < s ? s : e),
+    dependsOn: document.getElementById('mDep').value
+  };
   if (id) {
-    const task = proj.tasks.find(t => t.id === id);
-    Object.assign(task, {
-      title,
-      status,
-      owner,
-      start: formatDMY(start),
-      end: formatDMY(finalEnd),
-      dep
-    });
+    Object.assign(proj.tasks.find(x => x.id === id), data);
   } else {
-    proj.tasks.push({
-      id: 't-' + Date.now(),
-      title,
-      status,
-      owner,
-      start: formatDMY(start),
-      end: formatDMY(finalEnd),
-      dep
-    });
+    proj.tasks.push({ id: 't_' + Date.now(), ...data });
   }
-
   saveState();
   closeTaskModal();
-  switchView(currentView);
+  render();
 }
 
-function deleteCurrentTask() {
-  const proj = getCurrentProject();
-  const id = document.getElementById('edit-task-id').value;
+function deleteTask() {
+  const proj = getActiveProject();
+  const id = document.getElementById('mTaskId').value;
   if (!id || !confirm('Delete this task?')) return;
-  proj.tasks = proj.tasks.filter(t => t.id !== id);
-  proj.tasks.forEach(t => { if (t.dep === id) t.dep = ''; });
+  proj.tasks = proj.tasks.filter(x => x.id !== id);
+  proj.tasks.forEach(x => { if (x.dependsOn === id) x.dependsOn = ''; });
   saveState();
   closeTaskModal();
-  switchView(currentView);
+  render();
 }
 
-function escapeHtml(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+// Export / Import
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `kanban_gantt_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
 }
 
-function escapeAttr(str) {
-  return escapeHtml(str).replace(/"/g, '&quot;');
+function importJSON(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!parsed || !Array.isArray(parsed.projects)) throw new Error('Invalid JSON structure');
+      state = parsed;
+      saveState();
+      activeProjectId = null;
+      render();
+      alert('Schedule imported successfully!');
+    } catch (err) {
+      alert('Could not import file: ' + err.message);
+    }
+    ev.target.value = '';
+  };
+  reader.readAsText(file);
 }
 
-showDashboard();
+function exportCSV() {
+  const proj = getActiveProject();
+  if (!proj) return;
+  const tasks = sortTasksByDate(proj.tasks);
+  const idMap = Object.fromEntries(tasks.map(t => [t.id, t.name]));
+  const rows = [['Task Name', 'Category', 'Owner', 'Status', 'Start Date', 'End Date', 'Days', 'Depends On']];
+  tasks.forEach(t => {
+    rows.push([
+      t.name, t.category || '', t.owner || '', t.status,
+      t.start, t.end, calcDays(t.start, t.end), idMap[t.dependsOn] || ''
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`));
+  });
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${proj.name.replace(/[^a-z0-9]/gi, '_')}_schedule.csv`;
+  a.click();
+}
+
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+}
+
+render();
 </script>
 </body>
 </html>
