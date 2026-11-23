@@ -6,173 +6,406 @@
 <title>Project Kanban & Gantt Tracker</title>
 <style>
   :root {
-    --bg: #f1f5f9;
+    --bg: #f4f6f9;
     --surface: #ffffff;
-    --border: #cbd5e1;
-    --text: #0f172a;
+    --border: #dce1e8;
+    --text: #1e293b;
     --muted: #64748b;
     --primary: #2563eb;
     --primary-hover: #1d4ed8;
-    --c-pending: #64748b;
-    --c-todo: #2563eb;
-    --c-progress: #16a34a;
-    --c-done: #0f172a;
-    --c-warn: #eab308;
-    --c-over: #dc2626;
+    --danger: #dc2626;
+    --warning: #eab308;
+    --success: #16a34a;
+    --pending: #6b7280;
+    --done: #111827;
+    --row-h: 44px;
+    --head-h: 48px;
   }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
-  button, input, select { font-family: inherit; }
-  .btn { padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; }
-  .btn:hover { background: #f8fafc; }
-  .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
-  .btn-primary:hover { background: var(--primary-hover); }
-  .btn-danger { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
-  .btn-danger:hover { background: #fee2e2; }
-  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 30; }
-  .topbar-left, .topbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .brand { font-weight: 700; font-size: 16px; color: var(--primary); }
-  .tabs { display: inline-flex; background: #e2e8f0; padding: 3px; border-radius: 7px; }
-  .tab { padding: 5px 12px; border: none; background: transparent; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); }
-  .tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
-  .container { padding: 20px; max-width: 1600px; margin: 0 auto; }
-  .grid-projects { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-top: 16px; }
-  .proj-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; }
-  .proj-card h3 { margin: 0 0 6px; font-size: 17px; }
-  .empty-box { background: var(--surface); border: 2px dashed var(--border); border-radius: 12px; padding: 48px 20px; text-align: center; margin-top: 20px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Header */
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 10px 18px; display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; z-index: 20;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  button, select {
+    padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s;
+  }
+  button:hover { background: #f1f5f9; }
+  button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  button.primary:hover { background: var(--primary-hover); }
+  button.danger { color: var(--danger); border-color: #fecaca; }
+  button.danger:hover { background: #fef2f2; }
+  .seg-group { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .seg-group button { border: none; border-radius: 0; border-right: 1px solid var(--border); padding: 6px 10px; }
+  .seg-group button:last-child { border-right: none; }
+  .seg-group button.active { background: var(--primary); color: #fff; }
+
+  /* Views */
+  .view { flex: 1; overflow: auto; display: none; }
+  .view.active { display: flex; flex-direction: column; }
+
+  /* Dashboard */
+  .dash-wrap { max-width: 1050px; width: 100%; margin: 28px auto; padding: 0 20px; }
+  .dash-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .proj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .proj-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px; display: flex; flex-direction: column; justify-content: space-between;
+    gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .proj-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .proj-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .proj-meta { font-size: 12px; color: var(--muted); }
+  .proj-actions { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; }
+  .empty-state {
+    text-align: center; padding: 60px 20px; background: var(--surface);
+    border: 1px dashed var(--border); border-radius: 12px; color: var(--muted);
+  }
+
+  /* Legend */
+  .legend {
+    display: flex; align-items: center; gap: 14px; padding: 6px 18px;
+    background: #f8fafc; border-bottom: 1px solid var(--border); font-size: 12px; flex-wrap: wrap;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 4px; }
+
   /* Kanban */
-  .kanban-board { display: grid; grid-template-columns: repeat(4, minmax(260px, 1fr)); gap: 14px; align-items: start; overflow-x: auto; padding-bottom: 16px; }
-  .k-col { background: #e2e8f0; border-radius: 9px; padding: 10px; min-height: 420px; }
+  .kanban-board {
+    flex: 1; display: grid; grid-template-columns: repeat(4, minmax(260px, 1fr));
+    gap: 14px; padding: 16px; overflow-x: auto; align-items: start;
+  }
+  .k-col {
+    background: #ebeff5; border-radius: 10px; padding: 12px;
+    display: flex; flex-direction: column; gap: 10px; min-height: 420px;
+  }
   .k-col.warn-col { background: #fef2f2; border: 1px solid #fecaca; }
-  .k-col-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 13px; margin-bottom: 10px; padding: 0 4px; }
-  .badge { background: rgba(15,23,42,0.1); padding: 2px 7px; border-radius: 99px; font-size: 11px; }
-  .k-card { background: var(--surface); border-radius: 7px; padding: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); border-left: 5px solid var(--c-todo); cursor: grab; }
-  .k-card-title { font-weight: 600; font-size: 13px; margin-bottom: 6px; }
-  .k-meta { display: flex; flex-wrap: wrap; gap: 5px; font-size: 11px; color: var(--muted); }
-  .pill { padding: 2px 6px; border-radius: 4px; background: #f1f5f9; font-weight: 600; }
-  /* Gantt */
-  .gantt-wrap { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; height: calc(100vh - 120px); min-height: 460px; }
-  .g-left { overflow-x: auto; overflow-y: auto; border-right: 2px solid var(--border); flex-shrink: 0; max-width: 60%; }
-  .g-right { flex: 1; overflow: auto; position: relative; background: #fafafa; }
+  .k-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 13px; padding: 2px 4px; }
+  .badge { background: rgba(0,0,0,0.08); padding: 2px 8px; border-radius: 99px; font-size: 11px; }
+  .k-card {
+    background: var(--surface); border-radius: 8px; padding: 11px;
+    border-left: 5px solid var(--pending); box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    cursor: grab; display: flex; flex-direction: column; gap: 6px;
+  }
+  .k-card:active { cursor: grabbing; }
+  .k-card-title { font-weight: 600; font-size: 13px; line-height: 1.35; }
+  .k-card-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); flex-wrap: wrap; gap: 4px; }
+  .tag { padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; color: #fff; }
+
+  /* Gantt Split Layout */
+  .gantt-wrap { flex: 1; display: flex; overflow: hidden; position: relative; }
+  .gantt-left {
+    flex-shrink: 0; overflow-x: auto; overflow-y: hidden;
+    border-right: 2px solid var(--border); background: var(--surface);
+    max-width: 65%;
+  }
+  .gantt-right { flex: 1; overflow: auto; position: relative; background: #fafbfc; }
+
+  /* Spreadsheet Table */
   table.g-table { border-collapse: collapse; table-layout: fixed; font-size: 12px; }
-  .g-table th, .g-table td { border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; padding: 0 6px; height: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .g-table th { background: #f8fafc; height: 48px; font-weight: 700; position: sticky; top: 0; z-index: 10; text-align: left; user-select: none; }
-  .resizer { position: absolute; right: 0; top: 0; width: 6px; height: 100%; cursor: col-resize; background: transparent; }
+  .g-table th, .g-table td {
+    border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+    padding: 0 6px; height: var(--row-h); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .g-table th {
+    height: var(--head-h); background: #f1f5f9; font-weight: 700; text-align: left;
+    position: relative; user-select: none;
+  }
+  .resizer {
+    position: absolute; right: 0; top: 0; width: 5px; height: 100%;
+    cursor: col-resize; background: transparent;
+  }
   .resizer:hover { background: var(--primary); }
-  .g-input { width: 100%; border: 1px solid transparent; background: transparent; font-size: 12px; padding: 4px; border-radius: 4px; color: var(--text); }
-  .g-input:focus { border-color: var(--primary); background: #fff; outline: none; }
-  .g-timeline-head { display: flex; height: 48px; background: #f8fafc; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 9; }
-  .g-week { border-right: 1px solid #cbd5e1; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; flex-shrink: 0; }
-  .g-week b { font-size: 12px; }
-  .g-canvas { position: relative; }
-  .g-row-bg { height: 44px; border-bottom: 1px solid #e2e8f0; display: flex; }
-  .g-week-cell { border-right: 1px solid #f1f5f9; height: 100%; flex-shrink: 0; }
-  .g-bar { position: absolute; height: 32px; top: 6px; border-radius: 5px; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; gap: 4px; cursor: move; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,0.2); z-index: 5; }
-  .g-bar.dark-text { color: #0f172a; }
-  .g-bar-date { font-weight: 700; font-size: 9.5px; flex-shrink: 0; opacity: 0.95; }
-  .g-bar-label { flex: 1; text-align: center; line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; font-weight: 600; }
-  .g-handle { position: absolute; top: 0; width: 7px; height: 100%; cursor: ew-resize; }
-  .g-handle.left { left: 0; }
-  .g-handle.right { right: 0; }
-  .today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444; z-index: 4; pointer-events: none; }
-  svg.dep-layer { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 4; }
-  .legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11px; align-items: center; }
-  .leg-item { display: inline-flex; align-items: center; gap: 4px; }
-  .dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .g-table input, .g-table select {
+    width: 100%; border: none; background: transparent; font-size: 12px;
+    padding: 4px 2px; color: var(--text); outline: none;
+  }
+  .g-table input:focus, .g-table select:focus { background: #eff6ff; border-radius: 3px; }
+
+  /* Timeline Canvas */
+  .tl-canvas { position: relative; min-height: 100%; }
+  .tl-header {
+    position: sticky; top: 0; height: var(--head-h); background: #f1f5f9;
+    border-bottom: 1px solid var(--border); display: flex; z-index: 10;
+  }
+  .tl-col-head {
+    border-right: 1px solid var(--border); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+    flex-shrink: 0; color: var(--text);
+  }
+  .tl-col-head span { font-size: 10px; font-weight: 400; color: var(--muted); }
+  .tl-col-head.weekend { background: #e2e8f0; }
+  .tl-grid { position: relative; }
+  .tl-row-bg {
+    height: var(--row-h); border-bottom: 1px solid #eef2f6; position: relative; display: flex;
+  }
+  .tl-cell-bg { border-right: 1px solid #eef2f6; height: 100%; flex-shrink: 0; }
+  .tl-cell-bg.weekend { background: rgba(226, 232, 240, 0.45); }
+  .today-line {
+    position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444;
+    z-index: 6; pointer-events: none;
+  }
+
+  /* Task Bar */
+  .g-bar {
+    position: absolute; height: 32px; top: 6px; border-radius: 6px;
+    color: #fff; font-size: 10px; display: flex; align-items: center;
+    justify-content: space-between; padding: 0 5px; gap: 4px;
+    cursor: grab; user-select: none; z-index: 5;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.22); overflow: hidden;
+  }
+  .g-bar:active { cursor: grabbing; }
+  .bar-date { font-size: 9px; font-weight: 700; opacity: 0.92; flex-shrink: 0; pointer-events: none; }
+  .bar-title {
+    flex: 1; text-align: center; font-weight: 600; font-size: 10px;
+    line-height: 1.1; white-space: normal; word-break: break-word;
+    overflow: hidden; max-height: 28px; pointer-events: none;
+  }
+  .bar-handle {
+    position: absolute; top: 0; width: 6px; height: 100%; cursor: ew-resize; z-index: 7;
+  }
+  .bar-handle.left { left: 0; }
+  .bar-handle.right { right: 0; }
+
+  svg.dep-layer {
+    position: absolute; top: var(--head-h); left: 0; pointer-events: none; z-index: 4;
+  }
+
   /* Modal */
-  .modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none; align-items: center; justify-content: center; z-index: 50; }
-  .modal-bg.open { display: flex; }
-  .modal { background: var(--surface); border-radius: 10px; padding: 18px; width: 420px; max-width: 94vw; box-shadow: 0 10px 25px rgba(0,0,0,0.18); }
-  .modal h3 { margin: 0 0 12px; }
-  .form-row { margin-bottom: 10px; }
-  .form-row label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
-  .form-row input, .form-row select { width: 100%; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
-  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: 10px; width: 420px; max-width: 94vw;
+    padding: 20px; display: flex; flex-direction: column; gap: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.18);
+  }
+  .modal h3 { font-size: 16px; }
+  .form-row { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; }
+  .form-row input, .form-row select {
+    padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
+  }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="topbar-left">
-    <span class="brand">Kanban &amp; Gantt Tracker</span>
-    <button class="btn" id="btnHome" style="display:none;" onclick="goHome()">&larr; All Projects</button>
-    <strong id="activeProjTitle" style="font-size:15px;"></strong>
-    <div class="tabs" id="viewTabs" style="display:none;">
-      <button class="tab active" id="tabKanban" onclick="switchView('kanban')">Kanban Board</button>
-      <button class="tab" id="tabGantt" onclick="switchView('gantt')">Gantt Chart</button>
-    </div>
+<header>
+  <div class="brand">
+    <button id="btnBackDash" style="display:none;" onclick="showDashboard()">← Projects</button>
+    <span id="headerTitle">Project Workspace</span>
   </div>
-  <div class="topbar-right">
-    <button class="btn btn-primary" id="btnAddTask" style="display:none;" onclick="openTaskModal()">+ Add Task</button>
-    <button class="btn" id="btnExportCsv" style="display:none;" onclick="exportCSV()">Export CSV</button>
-    <button class="btn" onclick="exportJSON()">Export JSON</button>
-    <button class="btn" onclick="document.getElementById('fileImport').click()">Import JSON</button>
-    <input type="file" id="fileImport" accept=".json" style="display:none;" onchange="importJSON(event)">
+  <div class="toolbar" id="dashToolbar">
+    <button onclick="document.getElementById('jsonFileInput').click()">Import JSON</button>
+    <button onclick="exportAllJSON()">Export JSON</button>
+    <button class="primary" onclick="openProjectModal()">+ New Project</button>
+    <input type="file" id="jsonFileInput" accept=".json" style="display:none" onchange="importJSON(event)">
+  </div>
+  <div class="toolbar" id="projToolbar" style="display:none;">
+    <div class="seg-group">
+      <button id="btnViewKanban" class="active" onclick="switchSubView('kanban')">Kanban Board</button>
+      <button id="btnViewGantt" onclick="switchSubView('gantt')">Gantt Chart</button>
+    </div>
+    <div class="seg-group" id="ganttScaleControls" style="display:none;">
+      <button id="btnScaleWeek" class="active" onclick="setGanttScale('week')">Weeks</button>
+      <button id="btnScaleDay" onclick="setGanttScale('day')">Days</button>
+      <button onclick="zoomGantt(-1)" title="Shrink Timeline">−</button>
+      <button onclick="zoomGantt(1)" title="Expand Timeline">+</button>
+    </div>
+    <button onclick="exportProjectCSV()">Export CSV</button>
+    <button onclick="exportAllJSON()">Export JSON</button>
+    <button class="primary" onclick="openTaskModal()">+ Add Task</button>
+  </div>
+</header>
+
+<div class="legend" id="colorLegend" style="display:none;">
+  <strong>Status &amp; Deadline Colors:</strong>
+  <span><i class="dot" style="background:#6b7280"></i>Pending</span>
+  <span><i class="dot" style="background:#2563eb"></i>To Do</span>
+  <span><i class="dot" style="background:#16a34a"></i>In Progress</span>
+  <span><i class="dot" style="background:#111827"></i>Completed</span>
+  <span><i class="dot" style="background:#eab308"></i>Near Deadline (&le;7d)</span>
+  <span><i class="dot" style="background:#dc2626"></i>Past Deadline</span>
+</div>
+
+<!-- Dashboard View -->
+<div id="viewDashboard" class="view active">
+  <div class="dash-wrap">
+    <div class="dash-top">
+      <div>
+        <h2>Your Projects</h2>
+        <p style="font-size:13px;color:var(--muted);">Create a new project or import an existing JSON schedule.</p>
+      </div>
+    </div>
+    <div id="projectGrid" class="proj-grid"></div>
   </div>
 </div>
 
-<div class="container" id="app"></div>
+<!-- Project View -->
+<div id="viewProject" class="view">
+  <!-- Kanban -->
+  <div id="subKanban" class="kanban-board">
+    <div class="k-col warn-col" ondragover="allowDrop(event)" ondrop="dropTask(event, 'Warning')">
+      <div class="k-head"><span>⚠️ Past Deadline / Warning</span><span class="badge" id="cntWarn">0</span></div>
+      <div id="colWarn" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+    <div class="k-col" ondragover="allowDrop(event)" ondrop="dropTask(event, 'To Do')">
+      <div class="k-head"><span>To Do / Pending</span><span class="badge" id="cntTodo">0</span></div>
+      <div id="colTodo" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+    <div class="k-col" ondragover="allowDrop(event)" ondrop="dropTask(event, 'In Progress')">
+      <div class="k-head"><span>In Progress</span><span class="badge" id="cntProg">0</span></div>
+      <div id="colProg" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+    <div class="k-col" ondragover="allowDrop(event)" ondrop="dropTask(event, 'Completed')">
+      <div class="k-head"><span>Done</span><span class="badge" id="cntDone">0</span></div>
+      <div id="colDone" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+  </div>
+
+  <!-- Gantt -->
+  <div id="subGantt" class="gantt-wrap" style="display:none;">
+    <div class="gantt-left" id="ganttLeft">
+      <table class="g-table" id="ganttTable">
+        <thead>
+          <tr id="ganttHeadRow"></tr>
+        </thead>
+        <tbody id="ganttBody"></tbody>
+      </table>
+    </div>
+    <div class="gantt-right" id="ganttRight">
+      <div class="tl-canvas" id="tlCanvas"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Project Modal -->
+<div class="modal-backdrop" id="projModal">
+  <div class="modal">
+    <h3>Create New Project</h3>
+    <div class="form-row">
+      <label>Project Name</label>
+      <input type="text" id="newProjName" placeholder="e.g., Assembly Line Automation">
+    </div>
+    <div class="modal-foot">
+      <button onclick="closeModal('projModal')">Cancel</button>
+      <button class="primary" onclick="createProject()">Create</button>
+    </div>
+  </div>
+</div>
 
 <!-- Task Modal -->
-<div class="modal-bg" id="taskModal">
+<div class="modal-backdrop" id="taskModal">
   <div class="modal">
-    <h3 id="modalHeading">Edit Task</h3>
-    <input type="hidden" id="mTaskId">
-    <div class="form-row"><label>Task Name</label><input type="text" id="mName"></div>
-    <div class="form-row"><label>Category</label><input type="text" id="mCat" placeholder="e.g. Design, Setup, Testing"></div>
-    <div class="form-row"><label>Owner</label><input type="text" id="mOwner"></div>
+    <h3 id="taskModalTitle">Add Task</h3>
+    <input type="hidden" id="editTaskId">
     <div class="form-row">
-      <label>Status</label>
-      <select id="mStatus">
-        <option value="Pending">Pending (Grey)</option>
-        <option value="To Do">To Do (Blue)</option>
-        <option value="In Progress">In Progress (Green)</option>
-        <option value="Completed">Completed (Black)</option>
-      </select>
+      <label>Task / Activity Name</label>
+      <input type="text" id="tName" placeholder="e.g., Design Revision">
     </div>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-      <div class="form-row"><label>Start Date (D/M/YYYY)</label><input type="text" id="mStart" placeholder="4/5/2026"></div>
-      <div class="form-row"><label>End Date (D/M/YYYY)</label><input type="text" id="mEnd" placeholder="14/5/2026"></div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Category / Phase</label>
+        <input type="text" id="tCat" placeholder="e.g., Setup at Workshop">
+      </div>
+      <div class="form-row">
+        <label>Owner</label>
+        <input type="text" id="tOwner" placeholder="e.g., Alex">
+      </div>
     </div>
-    <div class="form-row"><label>Depends On</label><select id="mDep"></select></div>
-    <div class="modal-actions">
-      <button class="btn btn-danger" id="btnDelTask" onclick="deleteTask()" style="margin-right:auto;">Delete</button>
-      <button class="btn" onclick="closeTaskModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveTaskModal()">Save</button>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Status</label>
+        <select id="tStatus">
+          <option value="Pending">Pending</option>
+          <option value="To Do">To Do</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Completed">Completed</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Depends On</label>
+        <select id="tDep"></select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Start Date (D/M/YYYY)</label>
+        <input type="text" id="tStart" placeholder="4/5/2026">
+      </div>
+      <div class="form-row">
+        <label>End Date (D/M/YYYY)</label>
+        <input type="text" id="tEnd" placeholder="24/5/2026">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button id="btnDeleteTask" class="danger" style="margin-right:auto;display:none;" onclick="deleteCurrentTask()">Delete</button>
+      <button onclick="closeModal('taskModal')">Cancel</button>
+      <button class="primary" onclick="saveTaskModal()">Save Task</button>
     </div>
   </div>
 </div>
 
 <script>
-const STORAGE_KEY = 'kb_gantt_v11_data';
-const COL_KEY = 'kb_gantt_v11_cols';
-const DAY_MS = 86400000;
-const PX_PER_DAY = 16;
+const STORAGE_KEY = 'kanban_gantt_workspace_v12';
+const COLS_KEY = 'kanban_gantt_cols_v12';
 
-let state = loadState();
-let colWidths = JSON.parse(localStorage.getItem(COL_KEY) || '{"name":210,"owner":95,"start":92,"end":92,"days":58,"dep":130}');
-let activeProjectId = null;
-let currentView = 'kanban';
+let state = {
+  projects: [],
+  activeProjectId: null,
+  subView: 'kanban',
+  ganttScale: 'week', // 'week' or 'day'
+  dayWidth: 16        // pixels per day (adjustable via zoom & scale)
+};
+
+let colWidths = {
+  name: 180,
+  owner: 85,
+  start: 88,
+  end: 88,
+  days: 54,
+  dep: 130
+};
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (saved && Array.isArray(saved.projects)) state.projects = saved.projects;
+    const savedCols = JSON.parse(localStorage.getItem(COLS_KEY));
+    if (savedCols) colWidths = { ...colWidths, ...savedCols };
   } catch (e) {}
-  return { projects: [] };
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects: state.projects }));
 }
 
+function saveColWidths() {
+  localStorage.setItem(COLS_KEY, JSON.stringify(colWidths));
+}
+
+/* Date Helpers (D/M/YYYY) */
 function parseDMY(str) {
   if (!str) return null;
-  const p = String(str).trim().split('/');
-  if (p.length !== 3) return null;
-  const d = parseInt(p[0], 10), m = parseInt(p[1], 10) - 1, y = parseInt(p[2], 10);
+  const parts = str.trim().split(/[\/\-\.]/);
+  if (parts.length !== 3) return null;
+  const d = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1;
+  const y = parseInt(parts[2], 10);
+  if (isNaN(d) || isNaN(m) || isNaN(y) || y < 1900) return null;
   const dt = new Date(y, m, d);
-  return isNaN(dt.getTime()) ? null : dt;
+  if (dt.getFullYear() !== y || dt.getMonth() !== m || dt.getDate() !== d) return null;
+  dt.setHours(0,0,0,0);
+  return dt;
 }
 
 function formatDMY(dt) {
@@ -180,218 +413,23 @@ function formatDMY(dt) {
   return `${dt.getDate()}/${dt.getMonth() + 1}/${dt.getFullYear()}`;
 }
 
-function formatDM(dt) {
+function formatDDMM(dt) {
   if (!dt) return '';
-  return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
+  const dd = String(dt.getDate()).padStart(2, '0');
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}`;
 }
 
-function calcDays(startStr, endStr) {
-  const s = parseDMY(startStr), e = parseDMY(endStr);
-  if (!s || !e) return 1;
-  return Math.max(1, Math.round((e - s) / DAY_MS) + 1);
+function addDays(dt, n) {
+  const res = new Date(dt);
+  res.setDate(res.getDate() + n);
+  res.setHours(0,0,0,0);
+  return res;
 }
 
-function addDaysStr(startStr, days) {
-  const s = parseDMY(startStr);
-  if (!s) return startStr;
-  const d = Math.max(1, parseInt(days, 10) || 1);
-  const e = new Date(s.getTime() + (d - 1) * DAY_MS);
-  return formatDMY(e);
-}
-
-function getTaskVisuals(task) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const end = parseDMY(task.end);
-  const isDone = task.status === 'Completed';
-  let urgency = 'normal';
-  if (!isDone && end) {
-    const diff = Math.round((end - today) / DAY_MS);
-    if (diff < 0) urgency = 'overdue';
-    else if (diff <= 7) urgency = 'warning';
-  }
-  let color = '#2563eb', darkText = false;
-  if (urgency === 'overdue') color = '#dc2626';
-  else if (urgency === 'warning') { color = '#eab308'; darkText = true; }
-  else if (task.status === 'Pending') color = '#64748b';
-  else if (task.status === 'In Progress') color = '#16a34a';
-  else if (task.status === 'Completed') color = '#0f172a';
-  return { color, darkText, urgency };
-}
-
-function getActiveProject() {
-  return state.projects.find(p => p.id === activeProjectId);
-}
-
-function sortTasksByDate(tasks) {
-  return [...tasks].sort((a, b) => {
-    const sa = parseDMY(a.start)?.getTime() || 0;
-    const sb = parseDMY(b.start)?.getTime() || 0;
-    if (sa !== sb) return sa - sb;
-    const ea = parseDMY(a.end)?.getTime() || 0;
-    const eb = parseDMY(b.end)?.getTime() || 0;
-    return ea - eb;
-  });
-}
-
-function goHome() {
-  activeProjectId = null;
-  render();
-}
-
-function openProject(id) {
-  activeProjectId = id;
-  currentView = 'kanban';
-  render();
-}
-
-function switchView(v) {
-  currentView = v;
-  render();
-}
-
-function createNewProject() {
-  const name = prompt('Enter new project name:');
-  if (!name || !name.trim()) return;
-  const today = new Date();
-  const s = formatDMY(today);
-  const e = addDaysStr(s, 5);
-  const proj = {
-    id: 'p_' + Date.now(),
-    name: name.trim(),
-    tasks: [
-      { id: 't_' + Date.now(), name: 'Project Kickoff', category: 'Planning', owner: 'Lead', status: 'To Do', start: s, end: e, dependsOn: '' }
-    ]
-  };
-  state.projects.push(proj);
-  saveState();
-  openProject(proj.id);
-}
-
-function deleteProject(id, ev) {
-  ev.stopPropagation();
-  if (!confirm('Delete this project permanently?')) return;
-  state.projects = state.projects.filter(p => p.id !== id);
-  saveState();
-  render();
-}
-
-function render() {
-  const app = document.getElementById('app');
-  const proj = getActiveProject();
-  document.getElementById('btnHome').style.display = proj ? '' : 'none';
-  document.getElementById('viewTabs').style.display = proj ? '' : 'none';
-  document.getElementById('btnAddTask').style.display = proj ? '' : 'none';
-  document.getElementById('btnExportCsv').style.display = proj ? '' : 'none';
-  document.getElementById('activeProjTitle').textContent = proj ? proj.name : '';
-
-  if (!proj) {
-    renderDashboard(app);
-    return;
-  }
-  document.getElementById('tabKanban').classList.toggle('active', currentView === 'kanban');
-  document.getElementById('tabGantt').classList.toggle('active', currentView === 'gantt');
-  if (currentView === 'kanban') renderKanban(app, proj);
-  else renderGantt(app, proj);
-}
-
-function renderDashboard(app) {
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-    <div><h2 style="margin:0;">Projects Dashboard</h2><p style="margin:4px 0 0;color:var(--muted);font-size:13px;">Create a new project or import an existing JSON schedule backup.</p></div>
-    <button class="btn btn-primary" onclick="createNewProject()">+ New Project</button>
-  </div>`;
-
-  if (state.projects.length === 0) {
-    html += `<div class="empty-box">
-      <h3 style="margin-top:0;">No Projects Yet</h3>
-      <p style="color:var(--muted);font-size:14px;">Start a fresh board or click <b>Import JSON</b> at the top right to load a saved schedule file.</p>
-      <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;">
-        <button class="btn btn-primary" onclick="createNewProject()">+ Create First Project</button>
-        <button class="btn" onclick="document.getElementById('fileImport').click()">Import JSON File</button>
-      </div>
-    </div>`;
-  } else {
-    html += `<div class="grid-projects">`;
-    state.projects.forEach(p => {
-      const done = p.tasks.filter(t => t.status === 'Completed').length;
-      html += `<div class="proj-card" onclick="openProject('${p.id}')" style="cursor:pointer;">
-        <div>
-          <h3>${esc(p.name)}</h3>
-          <div style="font-size:13px;color:var(--muted);">${p.tasks.length} tasks &bull; ${done} completed</div>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span class="pill" style="color:var(--primary);">Open Board &rarr;</span>
-          <button class="btn btn-danger" onclick="deleteProject('${p.id}', event)">Delete</button>
-        </div>
-      </div>`;
-    });
-    html += `</div>`;
-  }
-  app.innerHTML = html;
-}
-
-function renderKanban(app, proj) {
-  const tasks = sortTasksByDate(proj.tasks);
-  const warnTasks = tasks.filter(t => {
-    const v = getTaskVisuals(t);
-    return v.urgency === 'overdue' || v.urgency === 'warning';
-  });
-  const todoTasks = tasks.filter(t => t.status === 'Pending' || t.status === 'To Do');
-  const progTasks = tasks.filter(t => t.status === 'In Progress');
-  const doneTasks = tasks.filter(t => t.status === 'Completed');
-
-  const renderCard = (t, showStatusBadge) => {
-    const v = getTaskVisuals(t);
-    const days = calcDays(t.start, t.end);
-    return `<div class="k-card" draggable="true" ondragstart="onDragStart(event,'${t.id}')" onclick="openTaskModal('${t.id}')" style="border-left-color:${v.color};">
-      <div class="k-card-title">${esc(t.name)}</div>
-      <div class="k-meta">
-        ${showStatusBadge ? `<span class="pill">${esc(t.status)}</span>` : ''}
-        ${t.category ? `<span class="pill">${esc(t.category)}</span>` : ''}
-        ${t.owner ? `<span>&#128100; ${esc(t.owner)}</span>` : ''}
-        <span>&#128197; ${esc(t.start)} - ${esc(t.end)} (${days}d)</span>
-      </div>
-    </div>`;
-  };
-
-  app.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-      <div class="legend">
-        <span class="leg-item"><i class="dot" style="background:var(--c-pending)"></i>Pending</span>
-        <span class="leg-item"><i class="dot" style="background:var(--c-todo)"></i>To Do</span>
-        <span class="leg-item"><i class="dot" style="background:var(--c-progress)"></i>In Progress</span>
-        <span class="leg-item"><i class="dot" style="background:var(--c-done)"></i>Completed</span>
-        <span class="leg-item"><i class="dot" style="background:var(--c-warn)"></i>Near Deadline (&le;7d)</span>
-        <span class="leg-item"><i class="dot" style="background:var(--c-over)"></i>Past Deadline</span>
-      </div>
-    </div>
-    <div class="kanban-board">
-      <div class="k-col warn-col">
-        <div class="k-col-head"><span>&#9888; Past Deadline / Warning</span><span class="badge">${warnTasks.length}</span></div>
-        ${warnTasks.map(t => renderCard(t, true)).join('') || '<div style="font-size:12px;color:var(--muted);padding:8px;">No urgent tasks</div>'}
-      </div>
-      <div class="k-col" ondragover="event.preventDefault()" ondrop="onDropCol(event,'To Do')">
-        <div class="k-col-head"><span>To Do / Pending</span><span class="badge">${todoTasks.length}</span></div>
-        ${todoTasks.map(t => renderCard(t, true)).join('')}
-      </div>
-      <div class="k-col" ondragover="event.preventDefault()" ondrop="onDropCol(event,'In Progress')">
-        <div class="k-col-head"><span>In Progress</span><span class="badge">${progTasks.length}</span></div>
-        ${progTasks.map(t => renderCard(t, false)).join('')}
-      </div>
-      <div class="k-col" ondragover="event.preventDefault()" ondrop="onDropCol(event,'Completed')">
-        <div class="k-col-head"><span>Done</span><span class="badge">${doneTasks.length}</span></div>
-        ${doneTasks.map(t => renderCard(t, false)).join('')}
-      </div>
-    </div>`;
-}
-
-let draggedTaskId = null;
-function onDragStart(ev, id) { draggedTaskId = id; }
-function onDropCol(ev, newStatus) {
-  ev.preventDefault();
-  const proj = getActiveProject();
-  if (!proj || !draggedTaskId) return;
-  const t = proj.tasks.find(x => x.id === draggedTaskId);
-  if (t) { t.status = newStatus; saveState(); render(); }
+function diffDays(start, end) {
+  const ms = 86400000;
+  return Math.round((end - start) / ms) + 1;
 }
 
 function getISOWeek(dt) {
@@ -399,336 +437,651 @@ function getISOWeek(dt) {
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - yearStart) / DAY_MS) + 1) / 7);
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 }
 
-function renderGantt(app, proj) {
-  const tasks = sortTasksByDate(proj.tasks);
-  let minDt = new Date(), maxDt = new Date(Date.now() + 28 * DAY_MS);
-  if (tasks.length > 0) {
-    const starts = tasks.map(t => parseDMY(t.start)).filter(Boolean);
-    const ends = tasks.map(t => parseDMY(t.end)).filter(Boolean);
-    if (starts.length) minDt = new Date(Math.min(...starts));
-    if (ends.length) maxDt = new Date(Math.max(...ends));
-  }
-  // Align minDt to Monday
-  const day = minDt.getDay();
-  const diffToMon = (day === 0 ? -6 : 1 - day);
-  const timelineStart = new Date(minDt.getFullYear(), minDt.getMonth(), minDt.getDate() + diffToMon - 7);
-  const timelineEnd = new Date(maxDt.getFullYear(), maxDt.getMonth(), maxDt.getDate() + 14);
-  const totalDays = Math.max(28, Math.ceil((timelineEnd - timelineStart) / DAY_MS));
-  const totalWeeks = Math.ceil(totalDays / 7);
-  const canvasWidth = totalWeeks * 7 * PX_PER_DAY;
-  const canvasHeight = Math.max(tasks.length * 44, 300);
+/* Task Color & Urgency Logic */
+function getTaskUrgency(task) {
+  if (task.status === 'Completed') return 'normal';
+  const end = parseDMY(task.endDate);
+  if (!end) return 'normal';
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const daysLeft = Math.round((end - today) / 86400000);
+  if (daysLeft < 0) return 'overdue';
+  if (daysLeft <= 7) return 'warning';
+  return 'normal';
+}
 
-  // Build week headers
-  let weekHeaders = '';
-  let weekCells = '';
-  for (let w = 0; w < totalWeeks; w++) {
-    const wDate = new Date(timelineStart.getTime() + w * 7 * DAY_MS);
-    const wNum = getISOWeek(wDate);
-    const wPx = 7 * PX_PER_DAY;
-    weekHeaders += `<div class="g-week" style="width:${wPx}px;"><b>W${wNum}</b><span>${formatDM(wDate)}</span></div>`;
-    weekCells += `<div class="g-week-cell" style="width:${wPx}px;"></div>`;
+function getTaskColor(task) {
+  const urg = getTaskUrgency(task);
+  if (urg === 'overdue') return '#dc2626'; // Red
+  if (urg === 'warning') return '#eab308'; // Yellow
+  switch (task.status) {
+    case 'Pending': return '#6b7280';     // Grey
+    case 'To Do': return '#2563eb';       // Blue
+    case 'In Progress': return '#16a34a'; // Green
+    case 'Completed': return '#111827';   // Black
+    default: return '#6b7280';
   }
+}
 
-  // Table rows
-  let rowsHtml = '';
-  tasks.forEach((t, idx) => {
-    const days = calcDays(t.start, t.end);
-    const depOpts = `<option value="">None</option>` + tasks.filter(x => x.id !== t.id).map(x => `<option value="${x.id}" ${t.dependsOn === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
-    rowsHtml += `<tr>
-      <td><input class="g-input" value="${esc(t.name)}" onchange="updateTaskField('${t.id}','name',this.value)" title="${esc(t.name)}"></td>
-      <td><input class="g-input" value="${esc(t.owner || '')}" onchange="updateTaskField('${t.id}','owner',this.value)"></td>
-      <td><input class="g-input" value="${esc(t.start)}" onchange="updateTaskField('${t.id}','start',this.value)"></td>
-      <td><input class="g-input" value="${esc(t.end)}" onchange="updateTaskField('${t.id}','end',this.value)"></td>
-      <td><input class="g-input" type="number" min="1" value="${days}" onchange="updateTaskDays('${t.id}',this.value)"></td>
-      <td><select class="g-input" onchange="updateTaskField('${t.id}','dependsOn',this.value)">${depOpts}</select></td>
-    </tr>`;
+function getSortedTasks(proj) {
+  return [...proj.tasks].sort((a, b) => {
+    const sa = parseDMY(a.startDate) || new Date(8640000000000000);
+    const sb = parseDMY(b.startDate) || new Date(8640000000000000);
+    if (sa - sb !== 0) return sa - sb;
+    const ea = parseDMY(a.endDate) || sa;
+    const eb = parseDMY(b.endDate) || sb;
+    return ea - eb;
   });
+}
 
-  // Bars and coordinates
-  const barCoords = {};
-  let barsHtml = '';
-  tasks.forEach((t, idx) => {
-    const s = parseDMY(t.start) || timelineStart;
-    const e = parseDMY(t.end) || s;
-    const left = Math.max(0, Math.round((s - timelineStart) / DAY_MS) * PX_PER_DAY);
-    const days = Math.max(1, Math.round((e - s) / DAY_MS) + 1);
-    const width = Math.max(PX_PER_DAY, days * PX_PER_DAY);
-    const top = idx * 44 + 6;
-    const v = getTaskVisuals(t);
-    barCoords[t.id] = { left, right: left + width, centerY: idx * 44 + 22 };
-    barsHtml += `<div class="g-bar ${v.darkText ? 'dark-text' : ''}" id="bar_${t.id}" style="left:${left}px;width:${width}px;top:${top}px;background:${v.color};" onmousedown="startBarDrag(event,'${t.id}','move')" ondblclick="openTaskModal('${t.id}')">
-      <div class="g-handle left" onmousedown="startBarDrag(event,'${t.id}','left')"></div>
-      <span class="g-bar-date">${formatDM(s)}</span>
-      <span class="g-bar-label" title="${esc(t.name)}">${esc(t.name)}</span>
-      <span class="g-bar-date">${formatDM(e)}</span>
-      <div class="g-handle right" onmousedown="startBarDrag(event,'${t.id}','right')"></div>
+function activeProject() {
+  return state.projects.find(p => p.id === state.activeProjectId) || null;
+}
+
+/* Navigation */
+function showDashboard() {
+  state.activeProjectId = null;
+  document.getElementById('viewDashboard').classList.add('active');
+  document.getElementById('viewProject').classList.remove('active');
+  document.getElementById('btnBackDash').style.display = 'none';
+  document.getElementById('dashToolbar').style.display = 'flex';
+  document.getElementById('projToolbar').style.display = 'none';
+  document.getElementById('colorLegend').style.display = 'none';
+  document.getElementById('headerTitle').textContent = 'Project Workspace';
+  renderDashboard();
+}
+
+function openProject(id) {
+  state.activeProjectId = id;
+  const proj = activeProject();
+  if (!proj) return;
+  document.getElementById('viewDashboard').classList.remove('active');
+  document.getElementById('viewProject').classList.add('active');
+  document.getElementById('btnBackDash').style.display = 'inline-block';
+  document.getElementById('dashToolbar').style.display = 'none';
+  document.getElementById('projToolbar').style.display = 'flex';
+  document.getElementById('colorLegend').style.display = 'flex';
+  document.getElementById('headerTitle').textContent = proj.name;
+  switchSubView(state.subView);
+}
+
+function switchSubView(v) {
+  state.subView = v;
+  document.getElementById('btnViewKanban').classList.toggle('active', v === 'kanban');
+  document.getElementById('btnViewGantt').classList.toggle('active', v === 'gantt');
+  document.getElementById('subKanban').style.display = v === 'kanban' ? 'grid' : 'none';
+  document.getElementById('subGantt').style.display = v === 'gantt' ? 'flex' : 'none';
+  document.getElementById('ganttScaleControls').style.display = v === 'gantt' ? 'inline-flex' : 'none';
+  if (v === 'kanban') renderKanban();
+  else renderGantt();
+}
+
+/* Gantt Zoom & Scale Controls */
+function setGanttScale(scale) {
+  state.ganttScale = scale;
+  state.dayWidth = scale === 'day' ? 38 : 16;
+  document.getElementById('btnScaleWeek').classList.toggle('active', scale === 'week');
+  document.getElementById('btnScaleDay').classList.toggle('active', scale === 'day');
+  renderGantt();
+}
+
+function zoomGantt(dir) {
+  const step = state.ganttScale === 'day' ? 8 : 4;
+  const minW = state.ganttScale === 'day' ? 22 : 6;
+  const maxW = state.ganttScale === 'day' ? 90 : 48;
+  state.dayWidth = Math.max(minW, Math.min(maxW, state.dayWidth + dir * step));
+  renderGantt();
+}
+
+/* Dashboard Render */
+function renderDashboard() {
+  const grid = document.getElementById('projectGrid');
+  if (!state.projects.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+      <h3>No Projects Yet</h3>
+      <p style="margin:8px 0 16px;">Click <strong>+ New Project</strong> to start a board or <strong>Import JSON</strong> to load a saved schedule.</p>
+      <button class="primary" onclick="openProjectModal()">+ Create First Project</button>
     </div>`;
-  });
-
-  // Dashed Dependency Arrows
-  let arrowsSvg = `<svg class="dep-layer" width="${canvasWidth}" height="${canvasHeight}">
-    <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#475569"/></marker></defs>`;
-  tasks.forEach(t => {
-    if (t.dependsOn && barCoords[t.dependsOn] && barCoords[t.id]) {
-      const from = barCoords[t.dependsOn];
-      const to = barCoords[t.id];
-      const x1 = from.right, y1 = from.centerY;
-      const x2 = to.left, y2 = to.centerY;
-      const midX = x1 + 10;
-      const dPath = x2 >= x1 + 14
-        ? `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`
-        : `M ${x1} ${y1} L ${x1 + 10} ${y1} L ${x1 + 10} ${(y1 + y2) / 2} L ${x2 - 10} ${(y1 + y2) / 2} L ${x2 - 10} ${y2} L ${x2} ${y2}`;
-      arrowsSvg += `<path d="${dPath}" fill="none" stroke="#475569" stroke-width="1.25" stroke-dasharray="4,3" marker-end="url(#arrow)"/>`;
-    }
-  });
-  arrowsSvg += `</svg>`;
-
-  // Today line
-  const today = new Date(); today.setHours(0,0,0,0);
-  const todayLeft = Math.round((today - timelineStart) / DAY_MS) * PX_PER_DAY;
-  const todayHtml = (todayLeft >= 0 && todayLeft <= canvasWidth) ? `<div class="today-line" style="left:${todayLeft}px;" title="Today"></div>` : '';
-
-  app.innerHTML = `<div class="gantt-wrap">
-    <div class="g-left">
-      <table class="g-table">
-        <thead>
-          <tr>
-            <th style="width:${colWidths.name}px;">Task / Description<div class="resizer" onmousedown="initResize(event,'name')"></div></th>
-            <th style="width:${colWidths.owner}px;">Owner<div class="resizer" onmousedown="initResize(event,'owner')"></div></th>
-            <th style="width:${colWidths.start}px;">Start<div class="resizer" onmousedown="initResize(event,'start')"></div></th>
-            <th style="width:${colWidths.end}px;">End<div class="resizer" onmousedown="initResize(event,'end')"></div></th>
-            <th style="width:${colWidths.days}px;">Days<div class="resizer" onmousedown="initResize(event,'days')"></div></th>
-            <th style="width:${colWidths.dep}px;">Depends On<div class="resizer" onmousedown="initResize(event,'dep')"></div></th>
-          </tr>
-        </thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
-    </div>
-    <div class="g-right" id="gRight">
-      <div class="g-timeline-head" style="width:${canvasWidth}px;">${weekHeaders}</div>
-      <div class="g-canvas" style="width:${canvasWidth}px;height:${canvasHeight}px;">
-        ${tasks.map(() => `<div class="g-row-bg" style="width:${canvasWidth}px;">${weekCells}</div>`).join('')}
-        ${todayHtml}
-        ${arrowsSvg}
-        ${barsHtml}
+    return;
+  }
+  grid.innerHTML = state.projects.map(p => {
+    const done = p.tasks.filter(t => t.status === 'Completed').length;
+    return `<div class="proj-card">
+      <div>
+        <div class="proj-title">${esc(p.name)}</div>
+        <div class="proj-meta">${p.tasks.length} tasks &bull; ${done} completed</div>
       </div>
+      <div class="proj-actions">
+        <button class="danger" onclick="deleteProject('${p.id}')">Delete</button>
+        <button class="primary" onclick="openProject('${p.id}')">Open Board →</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openProjectModal() {
+  document.getElementById('newProjName').value = '';
+  document.getElementById('projModal').classList.add('open');
+}
+
+function createProject() {
+  const name = document.getElementById('newProjName').value.trim();
+  if (!name) return;
+  const today = new Date();
+  const nextWeek = addDays(today, 6);
+  const proj = {
+    id: 'p_' + Date.now(),
+    name,
+    tasks: [{
+      id: 't_' + Date.now(),
+      name: 'Project Kickoff',
+      category: 'Planning',
+      owner: 'Team',
+      status: 'To Do',
+      startDate: formatDMY(today),
+      endDate: formatDMY(nextWeek),
+      dependsOn: ''
+    }]
+  };
+  state.projects.push(proj);
+  saveState();
+  closeModal('projModal');
+  openProject(proj.id);
+}
+
+function deleteProject(id) {
+  if (!confirm('Delete this project?')) return;
+  state.projects = state.projects.filter(p => p.id !== id);
+  saveState();
+  renderDashboard();
+}
+
+/* Kanban Render & Drag */
+function renderKanban() {
+  const proj = activeProject();
+  if (!proj) return;
+  const tasks = getSortedTasks(proj);
+  const cols = { Warning: [], Todo: [], Prog: [], Done: [] };
+
+  tasks.forEach(t => {
+    const urg = getTaskUrgency(t);
+    if (urg === 'overdue' || urg === 'warning') {
+      cols.Warning.push(t);
+    }
+    if (t.status === 'Completed') cols.Done.push(t);
+    else if (t.status === 'In Progress') cols.Prog.push(t);
+    else cols.Todo.push(t);
+  });
+
+  document.getElementById('cntWarn').textContent = cols.Warning.length;
+  document.getElementById('cntTodo').textContent = cols.Todo.length;
+  document.getElementById('cntProg').textContent = cols.Prog.length;
+  document.getElementById('cntDone').textContent = cols.Done.length;
+
+  document.getElementById('colWarn').innerHTML = cols.Warning.map(t => cardHTML(t, true)).join('');
+  document.getElementById('colTodo').innerHTML = cols.Todo.map(t => cardHTML(t, false)).join('');
+  document.getElementById('colProg').innerHTML = cols.Prog.map(t => cardHTML(t, false)).join('');
+  document.getElementById('colDone').innerHTML = cols.Done.map(t => cardHTML(t, false)).join('');
+}
+
+function cardHTML(t, isWarnCol) {
+  const color = getTaskColor(t);
+  const urg = getTaskUrgency(t);
+  const badgeText = urg === 'overdue' ? 'PAST DEADLINE' : (urg === 'warning' ? 'NEAR DEADLINE' : t.status);
+  return `<div class="k-card" draggable="true" ondragstart="dragTask(event, '${t.id}')" onclick="openTaskModal('${t.id}')" style="border-left-color:${color};">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+      <span style="font-size:10px;color:var(--muted);font-weight:600;">${esc(t.category || 'General')}</span>
+      <span class="tag" style="background:${color};">${esc(isWarnCol ? `${badgeText} • ${t.status}` : badgeText)}</span>
+    </div>
+    <div class="k-card-title">${esc(t.name)}</div>
+    <div class="k-card-meta">
+      <span>👤 ${esc(t.owner || 'Unassigned')}</span>
+      <span>📅 ${esc(t.startDate)} → ${esc(t.endDate)}</span>
     </div>
   </div>`;
 }
 
-function updateTaskField(id, field, val) {
-  const proj = getActiveProject();
-  const t = proj?.tasks.find(x => x.id === id);
+let draggedTaskId = null;
+function dragTask(ev, id) { draggedTaskId = id; }
+function allowDrop(ev) { ev.preventDefault(); }
+function dropTask(ev, targetCol) {
+  ev.preventDefault();
+  const proj = activeProject();
+  if (!proj || !draggedTaskId) return;
+  const t = proj.tasks.find(x => x.id === draggedTaskId);
   if (!t) return;
-  if (field === 'start' || field === 'end') {
+  if (targetCol === 'To Do' || targetCol === 'In Progress' || targetCol === 'Completed') {
+    t.status = targetCol;
+    saveState();
+    renderKanban();
+  }
+  draggedTaskId = null;
+}
+
+/* Gantt Render */
+function renderGantt() {
+  const proj = activeProject();
+  if (!proj) return;
+  const tasks = getSortedTasks(proj);
+
+  // Table Headers with Resizers
+  const headers = [
+    { key: 'name', label: 'Task / Description' },
+    { key: 'owner', label: 'Owner' },
+    { key: 'start', label: 'Start' },
+    { key: 'end', label: 'End' },
+    { key: 'days', label: 'Days' },
+    { key: 'dep', label: 'Depends On' }
+  ];
+
+  const headRow = document.getElementById('ganttHeadRow');
+  headRow.innerHTML = headers.map(h => `
+    <th style="width:${colWidths[h.key]}px;">
+      ${h.label}
+      <div class="resizer" onmousedown="initColResize(event, '${h.key}')"></div>
+    </th>
+  `).join('');
+
+  // Table Body
+  const tbody = document.getElementById('ganttBody');
+  tbody.innerHTML = tasks.map(t => {
+    const s = parseDMY(t.startDate);
+    const e = parseDMY(t.endDate);
+    const days = (s && e && e >= s) ? diffDays(s, e) : 1;
+    const depOpts = `<option value="">None</option>` + tasks
+      .filter(o => o.id !== t.id)
+      .map(o => `<option value="${o.id}" ${t.dependsOn === o.id ? 'selected' : ''}>${esc(o.name)}</option>`)
+      .join('');
+    return `<tr>
+      <td style="width:${colWidths.name}px;" title="${esc(t.name)}">
+        <input type="text" value="${esc(t.name)}" onchange="updateCell('${t.id}','name',this.value)">
+      </td>
+      <td style="width:${colWidths.owner}px;">
+        <input type="text" value="${esc(t.owner || '')}" onchange="updateCell('${t.id}','owner',this.value)">
+      </td>
+      <td style="width:${colWidths.start}px;">
+        <input type="text" value="${esc(t.startDate)}" onchange="updateCell('${t.id}','startDate',this.value)">
+      </td>
+      <td style="width:${colWidths.end}px;">
+        <input type="text" value="${esc(t.endDate)}" onchange="updateCell('${t.id}','endDate',this.value)">
+      </td>
+      <td style="width:${colWidths.days}px;">
+        <input type="number" min="1" value="${days}" onchange="updateDuration('${t.id}', this.value)">
+      </td>
+      <td style="width:${colWidths.dep}px;">
+        <select onchange="updateCell('${t.id}','dependsOn',this.value)">${depOpts}</select>
+      </td>
+    </tr>`;
+  }).join('');
+
+  renderTimeline(tasks);
+}
+
+function updateCell(taskId, field, val) {
+  const proj = activeProject();
+  const t = proj.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  if (field === 'startDate' || field === 'endDate') {
     const parsed = parseDMY(val);
-    if (!parsed) { alert('Please use D/M/YYYY format (e.g. 4/5/2026)'); render(); return; }
+    if (!parsed) { alert('Please use D/M/YYYY format (e.g., 4/5/2026)'); renderGantt(); return; }
     t[field] = formatDMY(parsed);
-    if (parseDMY(t.end) < parseDMY(t.start)) t.end = t.start;
+    const s = parseDMY(t.startDate);
+    const e = parseDMY(t.endDate);
+    if (s && e && e < s) t.endDate = t.startDate;
   } else {
     t[field] = val;
   }
   saveState();
-  render();
+  renderGantt();
 }
 
-function updateTaskDays(id, daysVal) {
-  const proj = getActiveProject();
-  const t = proj?.tasks.find(x => x.id === id);
-  if (!t) return;
-  const d = Math.max(1, parseInt(daysVal, 10) || 1);
-  t.end = addDaysStr(t.start, d);
-  saveState();
-  render();
+function updateDuration(taskId, daysVal) {
+  const proj = activeProject();
+  const t = proj.tasks.find(x => x.id === taskId);
+  const d = parseInt(daysVal, 10);
+  if (!t || isNaN(d) || d < 1) { renderGantt(); return; }
+  const s = parseDMY(t.startDate);
+  if (s) {
+    t.endDate = formatDMY(addDays(s, d - 1));
+    saveState();
+    renderGantt();
+  }
 }
 
-// Column Resizer
-function initResize(ev, colKey) {
-  ev.preventDefault();
-  const startX = ev.clientX;
-  const startW = colWidths[colKey];
-  const onMove = (e) => {
-    colWidths[colKey] = Math.max(45, startW + (e.clientX - startX));
-    localStorage.setItem(COL_KEY, JSON.stringify(colWidths));
-    render();
-  };
-  const onUp = () => {
-    window.removeEventListener('mousemove', onMove);
-    window.removeEventListener('mouseup', onUp);
-  };
-  window.addEventListener('mousemove', onMove);
-  window.addEventListener('mouseup', onUp);
-}
-
-// Gantt Bar Dragging
-function startBarDrag(ev, taskId, mode) {
+/* Column Resizing */
+let resizingCol = null, resizeStartX = 0, resizeStartW = 0;
+function initColResize(ev, key) {
   ev.stopPropagation();
-  const proj = getActiveProject();
-  const t = proj?.tasks.find(x => x.id === taskId);
-  if (!t) return;
-  const startX = ev.clientX;
-  const origStart = parseDMY(t.start);
-  const origEnd = parseDMY(t.end);
-  const barEl = document.getElementById('bar_' + taskId);
-  const origLeft = parseInt(barEl.style.left, 10);
-  const origWidth = parseInt(barEl.style.width, 10);
-  let deltaDays = 0;
-
-  const onMove = (e) => {
-    deltaDays = Math.round((e.clientX - startX) / PX_PER_DAY);
-    if (mode === 'move') {
-      barEl.style.left = Math.max(0, origLeft + deltaDays * PX_PER_DAY) + 'px';
-    } else if (mode === 'right') {
-      barEl.style.width = Math.max(PX_PER_DAY, origWidth + deltaDays * PX_PER_DAY) + 'px';
-    } else if (mode === 'left') {
-      const maxShift = Math.round((origEnd - origStart) / DAY_MS);
-      const clamped = Math.min(deltaDays, maxShift);
-      barEl.style.left = Math.max(0, origLeft + clamped * PX_PER_DAY) + 'px';
-      barEl.style.width = Math.max(PX_PER_DAY, origWidth - clamped * PX_PER_DAY) + 'px';
-    }
-  };
-
-  const onUp = () => {
-    window.removeEventListener('mousemove', onMove);
-    window.removeEventListener('mouseup', onUp);
-    if (deltaDays !== 0) {
-      if (mode === 'move') {
-        t.start = formatDMY(new Date(origStart.getTime() + deltaDays * DAY_MS));
-        t.end = formatDMY(new Date(origEnd.getTime() + deltaDays * DAY_MS));
-      } else if (mode === 'right') {
-        const newEnd = new Date(Math.max(origStart.getTime(), origEnd.getTime() + deltaDays * DAY_MS));
-        t.end = formatDMY(newEnd);
-      } else if (mode === 'left') {
-        const newStart = new Date(Math.min(origEnd.getTime(), origStart.getTime() + deltaDays * DAY_MS));
-        t.start = formatDMY(newStart);
-      }
-      saveState();
-    }
-    render();
-  };
-  window.addEventListener('mousemove', onMove);
-  window.addEventListener('mouseup', onUp);
+  resizingCol = key;
+  resizeStartX = ev.clientX;
+  resizeStartW = colWidths[key];
+  document.addEventListener('mousemove', doColResize);
+  document.addEventListener('mouseup', stopColResize);
+}
+function doColResize(ev) {
+  if (!resizingCol) return;
+  colWidths[resizingCol] = Math.max(44, resizeStartW + (ev.clientX - resizeStartX));
+  renderGantt();
+}
+function stopColResize() {
+  if (resizingCol) saveColWidths();
+  resizingCol = null;
+  document.removeEventListener('mousemove', doColResize);
+  document.removeEventListener('mouseup', stopColResize);
 }
 
-// Modal CRUD
-function openTaskModal(taskId) {
-  const proj = getActiveProject();
+/* Timeline Render & Bar Drag */
+let tlMinDate = null;
+function renderTimeline(tasks) {
+  const canvas = document.getElementById('tlCanvas');
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  let minD = new Date(today);
+  let maxD = addDays(today, 28);
+  tasks.forEach(t => {
+    const s = parseDMY(t.startDate);
+    const e = parseDMY(t.endDate);
+    if (s && s < minD) minD = new Date(s);
+    if (e && e > maxD) maxD = new Date(e);
+  });
+
+  // Align start to Monday
+  const dayOfWeek = minD.getDay() || 7;
+  minD = addDays(minD, -(dayOfWeek - 1) - 7);
+  maxD = addDays(maxD, 14);
+  tlMinDate = minD;
+
+  const totalDays = diffDays(minD, maxD);
+  const pxPerDay = state.dayWidth;
+  const totalWidth = totalDays * pxPerDay;
+  canvas.style.width = totalWidth + 'px';
+
+  // Header & Grid columns
+  let headerHTML = '';
+  let bgColsHTML = '';
+
+  if (state.ganttScale === 'day') {
+    for (let i = 0; i < totalDays; i++) {
+      const d = addDays(minD, i);
+      const isWknd = d.getDay() === 0 || d.getDay() === 6;
+      const dayNames = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+      headerHTML += `<div class="tl-col-head ${isWknd ? 'weekend' : ''}" style="width:${pxPerDay}px;">
+        ${d.getDate()}/${d.getMonth()+1}<span>${dayNames[d.getDay()]}</span>
+      </div>`;
+      bgColsHTML += `<div class="tl-cell-bg ${isWknd ? 'weekend' : ''}" style="width:${pxPerDay}px;"></div>`;
+    }
+  } else {
+    const numWeeks = Math.ceil(totalDays / 7);
+    for (let w = 0; w < numWeeks; w++) {
+      const wStart = addDays(minD, w * 7);
+      const wWidth = 7 * pxPerDay;
+      headerHTML += `<div class="tl-col-head" style="width:${wWidth}px;">
+        W${getISOWeek(wStart)}<span>${wStart.getDate()}/${wStart.getMonth()+1}</span>
+      </div>`;
+      bgColsHTML += `<div class="tl-cell-bg" style="width:${wWidth}px;"></div>`;
+    }
+  }
+
+  // Rows & Bars
+  let rowsHTML = '';
+  const barCoords = {};
+
+  tasks.forEach((t, idx) => {
+    const s = parseDMY(t.startDate) || minD;
+    const e = parseDMY(t.endDate) || s;
+    const offsetDays = Math.round((s - minD) / 86400000);
+    const spanDays = Math.max(1, diffDays(s, e));
+    const leftPx = offsetDays * pxPerDay;
+    const widthPx = Math.max(pxPerDay, spanDays * pxPerDay);
+    const color = getTaskColor(t);
+
+    barCoords[t.id] = { left: leftPx, right: leftPx + widthPx, rowIdx: idx };
+
+    rowsHTML += `<div class="tl-row-bg">
+      ${bgColsHTML}
+      <div class="g-bar" style="left:${leftPx}px;width:${widthPx}px;background:${color};"
+           onmousedown="initBarDrag(event, '${t.id}', 'move')"
+           ondblclick="openTaskModal('${t.id}')">
+        <div class="bar-handle left" onmousedown="initBarDrag(event, '${t.id}', 'left')"></div>
+        <span class="bar-date">${formatDDMM(s)}</span>
+        <span class="bar-title">${esc(t.name)}</span>
+        <span class="bar-date">${formatDDMM(e)}</span>
+        <div class="bar-handle right" onmousedown="initBarDrag(event, '${t.id}', 'right')"></div>
+      </div>
+    </div>`;
+  });
+
+  // Today marker
+  const todayOffset = Math.round((today - minD) / 86400000) * pxPerDay;
+  const todayHTML = (todayOffset >= 0 && todayOffset <= totalWidth)
+    ? `<div class="today-line" style="left:${todayOffset}px;" title="Today"></div>` : '';
+
+  // Thin Dashed Dependency Arrows
+  const svgH = Math.max(tasks.length * 44, 200);
+  let pathsHTML = `<defs><marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="#dc2626"/></marker></defs>`;
+
+  tasks.forEach(t => {
+    if (t.dependsOn && barCoords[t.dependsOn] && barCoords[t.id]) {
+      const from = barCoords[t.dependsOn];
+      const to = barCoords[t.id];
+      const x1 = from.right;
+      const y1 = from.rowIdx * 44 + 22;
+      const x2 = to.left;
+      const y2 = to.rowIdx * 44 + 22;
+      const midX = x1 + 10;
+      const d = (x2 >= x1 + 14)
+        ? `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2 - 2} ${y2}`
+        : `M ${x1} ${y1} L ${x1 + 10} ${y1} L ${x1 + 10} ${(y1 + y2)/2} L ${x2 - 10} ${(y1 + y2)/2} L ${x2 - 10} ${y2} L ${x2 - 2} ${y2}`;
+      pathsHTML += `<path d="${d}" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-dasharray="4,3" marker-end="url(#arrow)"/>`;
+    }
+  });
+
+  canvas.innerHTML = `
+    <div class="tl-header">${headerHTML}</div>
+    <div class="tl-grid">${todayHTML}${rowsHTML}</div>
+    <svg class="dep-layer" width="${totalWidth}" height="${svgH}">${pathsHTML}</svg>
+  `;
+}
+
+/* Interactive Bar Drag & Resize */
+let barDrag = null;
+function initBarDrag(ev, taskId, mode) {
+  ev.stopPropagation();
+  const proj = activeProject();
+  const t = proj.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  barDrag = {
+    taskId,
+    mode,
+    startX: ev.clientX,
+    origStart: parseDMY(t.startDate),
+    origEnd: parseDMY(t.endDate)
+  };
+  document.addEventListener('mousemove', doBarDrag);
+  document.addEventListener('mouseup', stopBarDrag);
+}
+
+function doBarDrag(ev) {
+  if (!barDrag) return;
+  const proj = activeProject();
+  const t = proj.tasks.find(x => x.id === barDrag.taskId);
+  if (!t) return;
+  const deltaDays = Math.round((ev.clientX - barDrag.startX) / state.dayWidth);
+
+  if (barDrag.mode === 'move') {
+    t.startDate = formatDMY(addDays(barDrag.origStart, deltaDays));
+    t.endDate = formatDMY(addDays(barDrag.origEnd, deltaDays));
+  } else if (barDrag.mode === 'left') {
+    const newS = addDays(barDrag.origStart, deltaDays);
+    if (newS <= barDrag.origEnd) t.startDate = formatDMY(newS);
+  } else if (barDrag.mode === 'right') {
+    const newE = addDays(barDrag.origEnd, deltaDays);
+    if (newE >= barDrag.origStart) t.endDate = formatDMY(newE);
+  }
+  renderGantt();
+}
+
+function stopBarDrag() {
+  if (barDrag) {
+    saveState();
+    renderGantt();
+  }
+  barDrag = null;
+  document.removeEventListener('mousemove', doBarDrag);
+  document.removeEventListener('mouseup', stopBarDrag);
+}
+
+/* Sync Vertical Scroll Between Spreadsheet & Timeline */
+document.getElementById('ganttRight').addEventListener('scroll', function() {
+  document.getElementById('ganttLeft').scrollTop = this.scrollTop;
+});
+
+/* Task Modal */
+function openTaskModal(taskId = null) {
+  const proj = activeProject();
   if (!proj) return;
-  const isNew = !taskId;
-  const t = isNew ? { id: '', name: '', category: '', owner: '', status: 'To Do', start: formatDMY(new Date()), end: addDaysStr(formatDMY(new Date()), 4), dependsOn: '' } : proj.tasks.find(x => x.id === taskId);
-  document.getElementById('modalHeading').textContent = isNew ? 'Add New Task' : 'Edit Task';
-  document.getElementById('mTaskId').value = t.id;
-  document.getElementById('mName').value = t.name;
-  document.getElementById('mCat').value = t.category || '';
-  document.getElementById('mOwner').value = t.owner || '';
-  document.getElementById('mStatus').value = t.status || 'To Do';
-  document.getElementById('mStart').value = t.start;
-  document.getElementById('mEnd').value = t.end;
-  document.getElementById('btnDelTask').style.display = isNew ? 'none' : '';
-  const depSel = document.getElementById('mDep');
-  depSel.innerHTML = `<option value="">None</option>` + proj.tasks.filter(x => x.id !== t.id).map(x => `<option value="${x.id}" ${t.dependsOn === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
+  const depSel = document.getElementById('tDep');
+  depSel.innerHTML = `<option value="">None</option>` + proj.tasks
+    .filter(x => x.id !== taskId)
+    .map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+
+  if (taskId) {
+    const t = proj.tasks.find(x => x.id === taskId);
+    document.getElementById('taskModalTitle').textContent = 'Edit Task';
+    document.getElementById('editTaskId').value = t.id;
+    document.getElementById('tName').value = t.name;
+    document.getElementById('tCat').value = t.category || '';
+    document.getElementById('tOwner').value = t.owner || '';
+    document.getElementById('tStatus').value = t.status;
+    document.getElementById('tDep').value = t.dependsOn || '';
+    document.getElementById('tStart').value = t.startDate;
+    document.getElementById('tEnd').value = t.endDate;
+    document.getElementById('btnDeleteTask').style.display = 'inline-block';
+  } else {
+    const today = new Date();
+    document.getElementById('taskModalTitle').textContent = 'Add New Task';
+    document.getElementById('editTaskId').value = '';
+    document.getElementById('tName').value = '';
+    document.getElementById('tCat').value = 'General';
+    document.getElementById('tOwner').value = '';
+    document.getElementById('tStatus').value = 'To Do';
+    document.getElementById('tDep').value = '';
+    document.getElementById('tStart').value = formatDMY(today);
+    document.getElementById('tEnd').value = formatDMY(addDays(today, 4));
+    document.getElementById('btnDeleteTask').style.display = 'none';
+  }
   document.getElementById('taskModal').classList.add('open');
 }
 
-function closeTaskModal() {
-  document.getElementById('taskModal').classList.remove('open');
-}
-
 function saveTaskModal() {
-  const proj = getActiveProject();
-  const id = document.getElementById('mTaskId').value;
-  const name = document.getElementById('mName').value.trim();
-  const s = parseDMY(document.getElementById('mStart').value);
-  const e = parseDMY(document.getElementById('mEnd').value);
-  if (!name || !s || !e) { alert('Enter a task name and valid D/M/YYYY start/end dates.'); return; }
+  const proj = activeProject();
+  const id = document.getElementById('editTaskId').value;
+  const name = document.getElementById('tName').value.trim();
+  const s = parseDMY(document.getElementById('tStart').value);
+  const e = parseDMY(document.getElementById('tEnd').value);
+  if (!name || !s || !e) {
+    alert('Please enter a valid task name and dates in D/M/YYYY format.');
+    return;
+  }
+  const endFinal = e < s ? s : e;
   const data = {
     name,
-    category: document.getElementById('mCat').value.trim(),
-    owner: document.getElementById('mOwner').value.trim(),
-    status: document.getElementById('mStatus').value,
-    start: formatDMY(s),
-    end: formatDMY(e < s ? s : e),
-    dependsOn: document.getElementById('mDep').value
+    category: document.getElementById('tCat').value.trim(),
+    owner: document.getElementById('tOwner').value.trim(),
+    status: document.getElementById('tStatus').value,
+    dependsOn: document.getElementById('tDep').value,
+    startDate: formatDMY(s),
+    endDate: formatDMY(endFinal)
   };
   if (id) {
-    Object.assign(proj.tasks.find(x => x.id === id), data);
+    const idx = proj.tasks.findIndex(x => x.id === id);
+    if (idx > -1) proj.tasks[idx] = { ...proj.tasks[idx], ...data };
   } else {
     proj.tasks.push({ id: 't_' + Date.now(), ...data });
   }
   saveState();
-  closeTaskModal();
-  render();
+  closeModal('taskModal');
+  switchSubView(state.subView);
 }
 
-function deleteTask() {
-  const proj = getActiveProject();
-  const id = document.getElementById('mTaskId').value;
-  if (!id || !confirm('Delete this task?')) return;
+function deleteCurrentTask() {
+  const proj = activeProject();
+  const id = document.getElementById('editTaskId').value;
+  if (!proj || !id) return;
   proj.tasks = proj.tasks.filter(x => x.id !== id);
   proj.tasks.forEach(x => { if (x.dependsOn === id) x.dependsOn = ''; });
   saveState();
-  closeTaskModal();
-  render();
+  closeModal('taskModal');
+  switchSubView(state.subView);
 }
 
-// Export / Import
-function exportJSON() {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `kanban_gantt_backup_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+/* Export / Import */
+function exportAllJSON() {
+  const payload = JSON.stringify({ projects: state.projects, colWidths }, null, 2);
+  downloadFile(payload, 'project_tracker_backup.json', 'application/json');
 }
 
 function importJSON(ev) {
   const file = ev.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = e => {
     try {
-      const parsed = JSON.parse(e.target.result);
-      if (!parsed || !Array.isArray(parsed.projects)) throw new Error('Invalid JSON structure');
-      state = parsed;
-      saveState();
-      activeProjectId = null;
-      render();
-      alert('Schedule imported successfully!');
-    } catch (err) {
-      alert('Could not import file: ' + err.message);
-    }
-    ev.target.value = '';
+      const data = JSON.parse(e.target.result);
+      if (data && Array.isArray(data.projects)) {
+        state.projects = data.projects;
+        if (data.colWidths) { colWidths = { ...colWidths, ...data.colWidths }; saveColWidths(); }
+        saveState();
+        renderDashboard();
+        alert('Schedule imported successfully!');
+      } else {
+        alert('Invalid JSON format.');
+      }
+    } catch (err) { alert('Could not parse JSON file.'); }
   };
   reader.readAsText(file);
+  ev.target.value = '';
 }
 
-function exportCSV() {
-  const proj = getActiveProject();
+function exportProjectCSV() {
+  const proj = activeProject();
   if (!proj) return;
-  const tasks = sortTasksByDate(proj.tasks);
-  const idMap = Object.fromEntries(tasks.map(t => [t.id, t.name]));
-  const rows = [['Task Name', 'Category', 'Owner', 'Status', 'Start Date', 'End Date', 'Days', 'Depends On']];
+  const tasks = getSortedTasks(proj);
+  const nameMap = Object.fromEntries(tasks.map(t => [t.id, t.name]));
+  const rows = [['Task Name','Category','Owner','Status','Start Date','End Date','Days','Depends On']];
   tasks.forEach(t => {
+    const s = parseDMY(t.startDate), e = parseDMY(t.endDate);
+    const days = (s && e) ? diffDays(s, e) : 1;
     rows.push([
       t.name, t.category || '', t.owner || '', t.status,
-      t.start, t.end, calcDays(t.start, t.end), idMap[t.dependsOn] || ''
+      t.startDate, t.endDate, days, nameMap[t.dependsOn] || ''
     ].map(v => `"${String(v).replace(/"/g, '""')}"`));
   });
   const csv = rows.map(r => r.join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  downloadFile(csv, `${proj.name.replace(/[^a-z0-9]/gi, '_')}.csv`, 'text/csv');
+}
+
+function downloadFile(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${proj.name.replace(/[^a-z0-9]/gi, '_')}_schedule.csv`;
+  a.download = filename;
   a.click();
+  URL.revokeObjectURL(a.href);
 }
 
-function esc(s) {
-  return String(s || '').replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+function esc(str) {
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
-render();
+loadState();
+renderDashboard();
 </script>
 </body>
 </html>
