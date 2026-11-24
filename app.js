@@ -1,58 +1,47 @@
-const STORAGE_KEY = 'kanban_gantt_pert_projects_v16';
-const WIDTHS_KEY = 'kanban_gantt_col_widths_v16';
+const STORAGE_KEY = 'pk_tracker_projects_v15';
+const WIDTHS_KEY = 'pk_tracker_col_widths_v15';
 
 let projects = [];
 let activeProjectId = null;
-let currentView = 'kanban';
+let activeView = 'kanban';
 let ganttScale = 'week';
-let colPx = 84;
-let colWidths = {
-  idx: 58,
-  name: 210,
-  owner: 105,
-  start: 105,
-  end: 105,
-  days: 65,
-  dep: 115
-};
+let ganttZoom = 44;
+let colWidths = { num: 54, task: 240, owner: 110, start: 105, end: 105, days: 68, deps: 95 };
+let dragRowIdx = null;
+let pertDragging = null;
 
-let draggedTaskId = null;
-let draggedRowIndex = null;
-let resizingCol = null;
-let resizeStartX = 0;
-let resizeStartW = 0;
+function $(ids) {
+  if (!Array.isArray(ids)) ids = [ids];
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el) return el;
+  }
+  return null;
+}
 
-let barDragState = null;
-let pertDragState = null;
-
-function initApp() {
+function loadState() {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) projects = JSON.parse(saved) || [];
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) projects = parsed;
+    }
   } catch (e) {
+    console.warn('Resetting invalid project storage', e);
     projects = [];
   }
   try {
-    const savedW = localStorage.getItem(WIDTHS_KEY);
-    if (savedW) colWidths = Object.assign(colWidths, JSON.parse(savedW));
+    const wRaw = localStorage.getItem(WIDTHS_KEY);
+    if (wRaw) colWidths = Object.assign(colWidths, JSON.parse(wRaw));
   } catch (e) {}
-
-  renderDashboard();
-
-  document.addEventListener('mousemove', handleGlobalMouseMove);
-  document.addEventListener('mouseup', handleGlobalMouseUp);
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
-} else {
-  initApp();
 }
 
 function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
-  } catch (e) {}
+  } catch (e) {
+    console.error('Failed to save projects', e);
+  }
 }
 
 function saveWidths() {
@@ -61,1064 +50,1042 @@ function saveWidths() {
   } catch (e) {}
 }
 
-function openProjectModal() {
-  const modal = document.getElementById('projectModal') || document.querySelector('.modal');
-  if (!modal) return;
-  modal.classList.remove('hidden');
-  modal.style.display = 'flex';
-  const inputs = modal.querySelectorAll('input[type="text"], input:not([type])');
-  if (inputs[0]) {
-    inputs[0].value = '';
-    setTimeout(() => inputs[0].focus(), 30);
-  }
-  if (inputs[1]) inputs[1].value = '';
-}
-
-function closeProjectModal() {
-  const modal = document.getElementById('projectModal') || document.querySelector('.modal');
-  if (!modal) return;
-  modal.classList.add('hidden');
-  modal.style.display = 'none';
-}
-
-function createNewProject() {
-  const modal = document.getElementById('projectModal') || document.querySelector('.modal');
-  let nameInput = document.getElementById('projNameInput') || document.getElementById('projectNameInput');
-  let descInput = document.getElementById('projDescInput') || document.getElementById('projectDescInput');
-
-  if (!nameInput && modal) {
-    const textInputs = modal.querySelectorAll('input[type="text"], input:not([type])');
-    nameInput = textInputs[0] || null;
-    descInput = textInputs[1] || null;
-  }
-
-  const name = nameInput ? nameInput.value.trim() : '';
-  const desc = descInput ? descInput.value.trim() : '';
-
-  if (!name) {
-    alert('Please enter a project name.');
-    if (nameInput) nameInput.focus();
-    return;
-  }
-
-  const todayStr = formatDMY(new Date());
-  const nextWeekStr = formatDMY(addDays(new Date(), 4));
-
-  const newProj = {
-    id: 'proj_' + Date.now(),
-    name: name,
-    description: desc,
-    tasks: [
-      {
-        id: 't_' + Date.now() + '_1',
-        title: 'Project Kickoff & Planning',
-        category: 'Planning',
-        owner: 'Lead',
-        status: 'To Do',
-        start: todayStr,
-        end: nextWeekStr,
-        days: 5,
-        formula: '',
-        dependsOn: '',
-        pertX: 60,
-        pertY: 80
-      }
-    ]
-  };
-
-  projects.push(newProj);
-  saveState();
-  closeProjectModal();
-  openProject(newProj.id);
-}
-
-window.openProjectModal = openProjectModal;
-window.closeProjectModal = closeProjectModal;
-window.createNewProject = createNewProject;
-window.handleCreateProject = function(e) {
-  if (e) e.preventDefault();
-  createNewProject();
-};
-
-function showDashboard() {
-  activeProjectId = null;
-  const dash = document.getElementById('dashboardView');
-  const ws = document.getElementById('workspaceView');
-  const bc = document.getElementById('breadcrumbProject');
-  const tabs = document.getElementById('viewTabs');
-  if (dash) dash.classList.remove('hidden');
-  if (ws) ws.classList.add('hidden');
-  if (bc) bc.textContent = '';
-  if (tabs) tabs.classList.add('hidden');
-  renderDashboard();
-}
-window.showDashboard = showDashboard;
-
-function openProject(projId) {
-  const proj = projects.find(p => p.id === projId);
-  if (!proj) return;
-  activeProjectId = projId;
-
-  const dash = document.getElementById('dashboardView');
-  const ws = document.getElementById('workspaceView');
-  const bc = document.getElementById('breadcrumbProject');
-  const tabs = document.getElementById('viewTabs');
-
-  if (dash) dash.classList.add('hidden');
-  if (ws) ws.classList.remove('hidden');
-  if (bc) bc.textContent = ' / ' + proj.name;
-  if (tabs) tabs.classList.remove('hidden');
-
-  recalculateFormulas(proj);
-  switchView(currentView);
-}
-window.openProject = openProject;
-
-function deleteProject(projId, event) {
-  if (event) event.stopPropagation();
-  if (!confirm('Delete this project permanently?')) return;
-  projects = projects.filter(p => p.id !== projId);
-  saveState();
-  renderDashboard();
-}
-window.deleteProject = deleteProject;
-
-function renderDashboard() {
-  const grid = document.getElementById('projectsGrid');
-  if (!grid) return;
-  if (projects.length === 0) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; text-align:center; padding:48px 20px; border:2px dashed #cbd5e1; border-radius:12px; color:#64748b;">
-      No projects yet. Click <strong>+ New Project</strong> at the top to create your first workspace, or import a JSON backup.
-    </div>`;
-    return;
-  }
-
-  grid.innerHTML = projects.map(p => {
-    const total = p.tasks.length;
-    const done = p.tasks.filter(t => t.status === 'Completed' || t.status === 'Done').length;
-    return `
-      <div class="project-card" onclick="openProject('${p.id}')">
-        <div class="project-card-header">
-          <h3>${escapeHtml(p.name)}</h3>
-          <button class="btn-icon-danger" onclick="deleteProject('${p.id}', event)" title="Delete Project">🗑️</button>
-        </div>
-        <p class="project-desc">${escapeHtml(p.description || 'Project schedule & workflow')}</p>
-        <div class="project-meta">
-          <span>📋 ${total} Tasks</span>
-          <span>✅ ${done}/${total} Done</span>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function switchView(view) {
-  currentView = view;
-  const views = ['kanban', 'gantt', 'pert'];
-  views.forEach(v => {
-    const el = document.getElementById(v + 'View');
-    const btn = document.getElementById('tab-' + v);
-    if (el) el.classList.toggle('hidden', v !== view);
-    if (btn) btn.classList.toggle('active', v === view);
-  });
-
-  const proj = getActiveProject();
-  if (!proj) return;
-  if (view === 'kanban') renderKanban(proj);
-  if (view === 'gantt') renderGantt(proj);
-  if (view === 'pert') renderPert(proj);
-}
-window.switchView = switchView;
-
 function getActiveProject() {
   return projects.find(p => p.id === activeProjectId) || null;
 }
 
-/* ================= DATE & FORMULA HELPERS ================= */
+function showDashboard() {
+  activeProjectId = null;
+  const dash = $(['dashboardView', 'projectDashboardView']);
+  const work = $(['workspaceView', 'projectWorkspaceView']);
+  if (dash) {
+    dash.classList.remove('hidden');
+    dash.style.display = '';
+  }
+  if (work) {
+    work.classList.add('hidden');
+    work.style.display = 'none';
+  }
+  renderDashboard();
+}
+
+function showWorkspace(projectId) {
+  if (projectId) activeProjectId = projectId;
+  const proj = getActiveProject();
+  if (!proj) return showDashboard();
+
+  const dash = $(['dashboardView', 'projectDashboardView']);
+  const work = $(['workspaceView', 'projectWorkspaceView']);
+  if (dash) {
+    dash.classList.add('hidden');
+    dash.style.display = 'none';
+  }
+  if (work) {
+    work.classList.remove('hidden');
+    work.style.display = '';
+  }
+
+  const titleEl = $(['workspaceProjectTitle', 'activeProjectTitle', 'projectTitleDisplay']);
+  const descEl = $(['workspaceProjectDesc', 'activeProjectDesc', 'projectDescDisplay']);
+  if (titleEl) titleEl.textContent = proj.name;
+  if (descEl) descEl.textContent = proj.description || '';
+
+  recalculateProjectDates(proj);
+  switchView(activeView);
+}
+
+window.showDashboard = showDashboard;
+window.openProject = showWorkspace;
+
+window.openProjectModal = function () {
+  const modal = $(['projectModal', 'newProjectModal']);
+  if (!modal) return;
+  const nameIn = $(['projNameInput', 'projectNameInput']) || modal.querySelector('input[type="text"], input:not([type])');
+  const descIn = $(['projDescInput', 'projectDescInput']) || modal.querySelector('textarea');
+  if (nameIn) nameIn.value = '';
+  if (descIn) descIn.value = '';
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+  if (nameIn) setTimeout(() => nameIn.focus(), 30);
+};
+
+window.closeProjectModal = function () {
+  const modal = $(['projectModal', 'newProjectModal']);
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.style.display = 'none';
+};
+
+window.createNewProject = function (e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const modal = $(['projectModal', 'newProjectModal']);
+  const nameIn = $(['projNameInput', 'projectNameInput']) || (modal ? modal.querySelector('input[type="text"], input:not([type])') : null);
+  const descIn = $(['projDescInput', 'projectDescInput']) || (modal ? modal.querySelector('textarea') : null);
+
+  const name = nameIn ? nameIn.value.trim() : '';
+  const description = descIn ? descIn.value.trim() : '';
+
+  if (!name) {
+    alert('Please enter a project name.');
+    if (nameIn) nameIn.focus();
+    return false;
+  }
+
+  const newProj = {
+    id: 'proj_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    name,
+    description,
+    createdAt: new Date().toISOString(),
+    tasks: []
+  };
+
+  projects.push(newProj);
+  saveState();
+  window.closeProjectModal();
+  renderDashboard();
+  showWorkspace(newProj.id);
+  return false;
+};
+
+window.handleCreateProject = window.createNewProject;
+window.createProjectFromModal = window.createNewProject;
+
+window.deleteProject = function (id, ev) {
+  if (ev) ev.stopPropagation();
+  if (!confirm('Delete this project and all its tasks?')) return;
+  projects = projects.filter(p => p.id !== id);
+  saveState();
+  if (activeProjectId === id) showDashboard();
+  else renderDashboard();
+};
+
+function renderDashboard() {
+  const grid = $(['projectGrid', 'projectsGrid', 'projectList']);
+  if (!grid) return;
+
+  if (!projects.length) {
+    grid.innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1;text-align:center;padding:48px 24px;border:2px dashed #cbd5e1;border-radius:12px;color:#64748b;">
+        <p style="font-size:15px;margin:0 0 12px;">No projects yet. Click <strong>+ New Project</strong> at the top right to create your first workspace, or import a JSON backup.</p>
+        <button type="button" class="btn btn-primary" onclick="openProjectModal()">+ New Project</button>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = projects.map(p => {
+    const total = (p.tasks || []).length;
+    const done = (p.tasks || []).filter(t => t.status === 'done').length;
+    return `
+      <div class="project-card" onclick="openProject('${p.id}')" style="cursor:pointer;">
+        <div class="project-card-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <h3 style="margin:0;font-size:17px;">${escapeHtml(p.name)}</h3>
+          <button type="button" class="btn-icon" title="Delete Project" onclick="deleteProject('${p.id}', event)">🗑️</button>
+        </div>
+        <p style="color:#64748b;font-size:13px;margin:8px 0 14px;">${escapeHtml(p.description || 'No description')}</p>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#475569;border-top:1px solid #e2e8f0;padding-top:10px;">
+          <span>${total} task${total === 1 ? '' : 's'}</span>
+          <span>${done}/${total} completed</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 function parseDMY(str) {
-  if (!str) return new Date();
-  const parts = String(str).trim().split('/');
-  if (parts.length !== 3) return new Date();
-  const d = parseInt(parts[0], 10);
-  const m = parseInt(parts[1], 10) - 1;
-  const y = parseInt(parts[2], 10);
-  const dt = new Date(y, m, d);
-  return isNaN(dt.getTime()) ? new Date() : dt;
+  if (!str) return null;
+  const m = String(str).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return null;
+  const d = parseInt(m[1], 10);
+  const mo = parseInt(m[2], 10) - 1;
+  const y = parseInt(m[3], 10);
+  const dt = new Date(y, mo, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo || dt.getDate() !== d) return null;
+  dt.setHours(0, 0, 0, 0);
+  return dt;
 }
 
-function formatDMY(date) {
-  if (!(date instanceof Date) || isNaN(date.getTime())) date = new Date();
-  return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+function formatDMY(dt) {
+  if (!(dt instanceof Date) || isNaN(dt)) return '';
+  return `${dt.getDate()}/${dt.getMonth() + 1}/${dt.getFullYear()}`;
 }
 
-function formatShortDM(str) {
-  const parts = String(str || '').split('/');
-  if (parts.length < 2) return str || '';
-  const dd = parts[0].padStart(2, '0');
-  const mm = parts[1].padStart(2, '0');
+function formatDDMM(dt) {
+  if (!(dt instanceof Date) || isNaN(dt)) return '';
+  const dd = String(dt.getDate()).padStart(2, '0');
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
   return `${dd}/${mm}`;
 }
 
-function addDays(date, days) {
-  const res = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+function addDays(dt, days) {
+  const res = new Date(dt.getTime());
   res.setDate(res.getDate() + days);
+  res.setHours(0, 0, 0, 0);
   return res;
 }
 
-function diffDaysInclusive(startStr, endStr) {
-  const s = parseDMY(startStr);
-  const e = parseDMY(endStr);
-  const diff = Math.round((e - s) / 86400000) + 1;
-  return Math.max(1, diff);
+function diffDaysInclusive(start, end) {
+  const ms = 86400000;
+  return Math.max(1, Math.round((end - start) / ms) + 1);
 }
 
-function getTaskColorClass(task) {
-  const status = (task.status || 'To Do').toLowerCase();
-  if (status === 'completed' || status === 'done') return 'status-completed';
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const end = parseDMY(task.end);
-  end.setHours(0, 0, 0, 0);
-  const daysLeft = Math.round((end - today) / 86400000);
-
-  if (daysLeft < 0) return 'status-overdue';
-  if (daysLeft <= 7) return 'status-warning';
-
-  if (status === 'pending') return 'status-pending';
-  if (status === 'in progress') return 'status-progress';
-  return 'status-todo';
+function todayZero() {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  return t;
 }
 
-function getTaskHexColor(task) {
-  const cls = getTaskColorClass(task);
-  const map = {
-    'status-pending': '#64748b',
-    'status-todo': '#2563eb',
-    'status-progress': '#16a34a',
-    'status-completed': '#0f172a',
-    'status-warning': '#eab308',
-    'status-overdue': '#dc2626'
-  };
-  return map[cls] || '#2563eb';
+function parseFormula(formulaStr) {
+  if (!formulaStr) return null;
+  const m = String(formulaStr).trim().match(/^=\s*(\d+)\s*([+-]\s*\d+)?$/);
+  if (!m) return null;
+  const rowNum = parseInt(m[1], 10);
+  const offset = m[2] ? parseInt(m[2].replace(/\s+/g, ''), 10) : 0;
+  return { rowNum, offset };
 }
 
-function recalculateFormulas(proj) {
-  if (!proj || !proj.tasks) return;
-  for (let pass = 0; pass < proj.tasks.length; pass++) {
-    proj.tasks.forEach((task, idx) => {
-      if (task.formula && task.formula.startsWith('=')) {
-        const match = task.formula.match(/^=(\d+)([+-]\d+)?$/);
-        if (match) {
-          const refIdx = parseInt(match[1], 10) - 1;
-          const offset = match[2] ? parseInt(match[2], 10) : 0;
-          if (refIdx >= 0 && refIdx < proj.tasks.length && refIdx !== idx) {
-            const pred = proj.tasks[refIdx];
-            const predEnd = parseDMY(pred.end);
-            const newStart = addDays(predEnd, offset);
-            const dur = Math.max(1, parseInt(task.days, 10) || diffDaysInclusive(task.start, task.end));
-            task.start = formatDMY(newStart);
-            task.end = formatDMY(addDays(newStart, dur - 1));
-            task.days = dur;
-            task.dependsOn = pred.id;
+function recalculateProjectDates(proj) {
+  if (!proj || !Array.isArray(proj.tasks)) return;
+  const tasks = proj.tasks;
+  for (let pass = 0; pass < tasks.length + 1; pass++) {
+    let changed = false;
+    tasks.forEach((t, idx) => {
+      const f = parseFormula(t.startFormula);
+      if (f && f.rowNum >= 1 && f.rowNum <= tasks.length && f.rowNum !== idx + 1) {
+        const pred = tasks[f.rowNum - 1];
+        const predEnd = parseDMY(pred.endDate);
+        if (predEnd) {
+          const newStart = addDays(predEnd, f.offset);
+          const dur = Math.max(1, parseInt(t.days, 10) || 1);
+          const newEnd = addDays(newStart, dur - 1);
+          const sStr = formatDMY(newStart);
+          const eStr = formatDMY(newEnd);
+          if (t.startDate !== sStr || t.endDate !== eStr) {
+            t.startDate = sStr;
+            t.endDate = eStr;
+            changed = true;
           }
+          if (!Array.isArray(t.dependencies)) t.dependencies = [];
+          if (!t.dependencies.includes(pred.id)) t.dependencies.push(pred.id);
         }
       } else {
-        task.days = diffDaysInclusive(task.start, task.end);
+        const s = parseDMY(t.startDate);
+        const dur = Math.max(1, parseInt(t.days, 10) || 1);
+        if (s) {
+          const eStr = formatDMY(addDays(s, dur - 1));
+          if (t.endDate !== eStr) {
+            t.endDate = eStr;
+            changed = true;
+          }
+        }
       }
     });
+    if (!changed) break;
   }
 }
 
-/* ================= TASK MODAL ================= */
-function openTaskModal(taskId = null) {
+function getTaskVisualState(task) {
+  const today = todayZero();
+  const end = parseDMY(task.endDate);
+  if (task.status === 'done') {
+    return { color: '#16a34a', bg: '#dcfce7', border: '#86efac', badge: 'Done', urgent: null };
+  }
+  if (end) {
+    const daysLeft = Math.round((end - today) / 86400000);
+    if (daysLeft < 0) {
+      return { color: '#dc2626', bg: '#fee2e2', border: '#fca5a5', badge: 'Overdue', urgent: 'overdue' };
+    }
+    if (daysLeft <= 7) {
+      return { color: '#ca8a04', bg: '#fef9c3', border: '#fde047', badge: 'Due Soon', urgent: 'warning' };
+    }
+  }
+  if (task.status === 'inprogress') {
+    return { color: '#2563eb', bg: '#dbeafe', border: '#93c5fd', badge: 'In Progress', urgent: null };
+  }
+  return { color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1', badge: 'To Do', urgent: null };
+}
+
+window.switchView = function (view) {
+  activeView = view;
+  ['kanban', 'gantt', 'pert'].forEach(v => {
+    const sec = $([v + 'View', v + 'Section']);
+    const tab = $([v + 'TabBtn', 'tab-' + v]);
+    if (sec) {
+      sec.classList.toggle('hidden', v !== view);
+      sec.style.display = v === view ? '' : 'none';
+    }
+    if (tab) tab.classList.toggle('active', v === view);
+  });
+
+  if (view === 'kanban') renderKanban();
+  else if (view === 'gantt') renderGantt();
+  else if (view === 'pert') renderPert();
+};
+
+window.openTaskModal = function (taskId) {
   const proj = getActiveProject();
   if (!proj) return;
-  const modal = document.getElementById('taskModal');
+  const modal = $(['taskModal', 'editTaskModal']);
   if (!modal) return;
 
-  const depSelect = document.getElementById('taskDependsInput');
-  if (depSelect) {
-    depSelect.innerHTML = '<option value="">None</option>' +
-      proj.tasks.filter(t => t.id !== taskId).map((t, i) =>
-        `<option value="${t.id}">#${proj.tasks.indexOf(t) + 1} ${escapeHtml(t.title)}</option>`
-      ).join('');
-  }
+  const task = taskId ? proj.tasks.find(t => t.id === taskId) : null;
+  const idIn = $(['editTaskId', 'taskIdInput']);
+  const titleIn = $(['taskTitleInput', 'editTaskTitle']);
+  const catIn = $(['taskCategoryInput', 'editTaskCategory']);
+  const ownerIn = $(['taskOwnerInput', 'editTaskOwner']);
+  const statusIn = $(['taskStatusInput', 'editTaskStatus']);
+  const startIn = $(['taskStartInput', 'editTaskStart']);
+  const endIn = $(['taskEndInput', 'editTaskEnd']);
+  const depsSel = $(['taskDepsSelect', 'editTaskDeps']);
 
-  const editIdInput = document.getElementById('editTaskId');
-  const titleInput = document.getElementById('taskTitleInput');
-  const catInput = document.getElementById('taskCatInput');
-  const ownerInput = document.getElementById('taskOwnerInput');
-  const statusInput = document.getElementById('taskStatusInput');
-  const startInput = document.getElementById('taskStartInput');
-  const endInput = document.getElementById('taskEndInput');
+  const todayStr = formatDMY(todayZero());
+  if (idIn) idIn.value = task ? task.id : '';
+  if (titleIn) titleIn.value = task ? task.title : '';
+  if (catIn) catIn.value = task ? (task.category || '') : '';
+  if (ownerIn) ownerIn.value = task ? (task.owner || '') : '';
+  if (statusIn) statusIn.value = task ? (task.status || 'todo') : 'todo';
+  if (startIn) startIn.value = task ? (task.startFormula || task.startDate || todayStr) : todayStr;
+  if (endIn) endIn.value = task ? (task.endDate || todayStr) : formatDMY(addDays(todayZero(), 4));
 
-  if (taskId) {
-    const t = proj.tasks.find(x => x.id === taskId);
-    if (!t) return;
-    if (editIdInput) editIdInput.value = t.id;
-    if (titleInput) titleInput.value = t.title;
-    if (catInput) catInput.value = t.category || '';
-    if (ownerInput) ownerInput.value = t.owner || '';
-    if (statusInput) statusInput.value = t.status || 'To Do';
-    if (startInput) startInput.value = t.formula || t.start;
-    if (endInput) endInput.value = t.end;
-    if (depSelect) depSelect.value = t.dependsOn || '';
-  } else {
-    if (editIdInput) editIdInput.value = '';
-    if (titleInput) titleInput.value = '';
-    if (catInput) catInput.value = 'General';
-    if (ownerInput) ownerInput.value = '';
-    if (statusInput) statusInput.value = 'To Do';
-    const today = new Date();
-    if (startInput) startInput.value = formatDMY(today);
-    if (endInput) endInput.value = formatDMY(addDays(today, 3));
-    if (depSelect) depSelect.value = '';
+  if (depsSel) {
+    depsSel.innerHTML = proj.tasks
+      .filter(t => !task || t.id !== task.id)
+      .map((t, i) => {
+        const selected = task && Array.isArray(task.dependencies) && task.dependencies.includes(t.id) ? 'selected' : '';
+        return `<option value="${t.id}" ${selected}>#${proj.tasks.indexOf(t) + 1} - ${escapeHtml(t.title)}</option>`;
+      }).join('');
   }
 
   modal.classList.remove('hidden');
   modal.style.display = 'flex';
-}
-window.openTaskModal = openTaskModal;
+  if (titleIn) setTimeout(() => titleIn.focus(), 30);
+};
 
-function closeTaskModal() {
-  const modal = document.getElementById('taskModal');
-  if (!modal) return;
-  modal.classList.add('hidden');
-  modal.style.display = 'none';
-}
-window.closeTaskModal = closeTaskModal;
+window.closeTaskModal = function () {
+  const modal = $(['taskModal', 'editTaskModal']);
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+};
 
-function saveTaskFromModal() {
+window.saveTaskFromModal = function (e) {
+  if (e && e.preventDefault) e.preventDefault();
   const proj = getActiveProject();
-  if (!proj) return;
+  if (!proj) return false;
 
-  const editId = document.getElementById('editTaskId')?.value;
-  const title = document.getElementById('taskTitleInput')?.value.trim();
+  const idIn = $(['editTaskId', 'taskIdInput']);
+  const titleIn = $(['taskTitleInput', 'editTaskTitle']);
+  const catIn = $(['taskCategoryInput', 'editTaskCategory']);
+  const ownerIn = $(['taskOwnerInput', 'editTaskOwner']);
+  const statusIn = $(['taskStatusInput', 'editTaskStatus']);
+  const startIn = $(['taskStartInput', 'editTaskStart']);
+  const endIn = $(['taskEndInput', 'editTaskEnd']);
+  const depsSel = $(['taskDepsSelect', 'editTaskDeps']);
+
+  const title = titleIn ? titleIn.value.trim() : '';
   if (!title) {
-    alert('Please enter a task name.');
-    return;
+    alert('Please enter a task title.');
+    return false;
   }
-  const category = document.getElementById('taskCatInput')?.value.trim() || 'General';
-  const owner = document.getElementById('taskOwnerInput')?.value.trim() || '';
-  const status = document.getElementById('taskStatusInput')?.value || 'To Do';
-  const rawStart = document.getElementById('taskStartInput')?.value.trim() || formatDMY(new Date());
-  const rawEnd = document.getElementById('taskEndInput')?.value.trim() || rawStart;
-  const dependsOn = document.getElementById('taskDependsInput')?.value || '';
 
-  let formula = '';
-  let start = rawStart;
-  let end = rawEnd;
-  let days = 1;
+  const rawStart = startIn ? startIn.value.trim() : '';
+  const rawEnd = endIn ? endIn.value.trim() : '';
+  const formula = parseFormula(rawStart);
+  let startDate = formatDMY(todayZero());
+  let endDate = formatDMY(addDays(todayZero(), 4));
+  let days = 5;
 
-  if (rawStart.startsWith('=')) {
-    formula = rawStart.replace(/\s+/g, '');
-    days = editId ? (proj.tasks.find(x => x.id === editId)?.days || 3) : 3;
-    start = formatDMY(new Date());
-    end = formatDMY(addDays(new Date(), days - 1));
+  if (formula) {
+    const eDt = parseDMY(rawEnd);
+    days = eDt ? 5 : 5;
   } else {
-    start = formatDMY(parseDMY(rawStart));
-    end = formatDMY(parseDMY(rawEnd));
-    if (parseDMY(end) < parseDMY(start)) end = start;
-    days = diffDaysInclusive(start, end);
+    const sDt = parseDMY(rawStart) || todayZero();
+    const eDt = parseDMY(rawEnd);
+    startDate = formatDMY(sDt);
+    if (eDt && eDt >= sDt) {
+      endDate = formatDMY(eDt);
+      days = diffDaysInclusive(sDt, eDt);
+    } else {
+      endDate = formatDMY(addDays(sDt, days - 1));
+    }
   }
 
-  if (editId) {
-    const t = proj.tasks.find(x => x.id === editId);
-    if (t) {
-      t.title = title;
-      t.category = category;
-      t.owner = owner;
-      t.status = status;
-      t.formula = formula;
-      t.start = start;
-      t.end = end;
-      t.days = days;
-      t.dependsOn = dependsOn;
+  const deps = depsSel ? Array.from(depsSel.selectedOptions).map(o => o.value) : [];
+  const existingId = idIn ? idIn.value : '';
+
+  if (existingId) {
+    const task = proj.tasks.find(t => t.id === existingId);
+    if (task) {
+      task.title = title;
+      task.category = catIn ? catIn.value.trim() : '';
+      task.owner = ownerIn ? ownerIn.value.trim() : '';
+      task.status = statusIn ? statusIn.value : 'todo';
+      task.startFormula = formula ? rawStart : '';
+      if (!formula) {
+        task.startDate = startDate;
+        task.endDate = endDate;
+        task.days = days;
+      }
+      task.dependencies = deps;
     }
   } else {
     proj.tasks.push({
-      id: 't_' + Date.now(),
+      id: 'task_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
       title,
-      category,
-      owner,
-      status,
-      formula,
-      start,
-      end,
+      category: catIn ? catIn.value.trim() : '',
+      owner: ownerIn ? ownerIn.value.trim() : '',
+      status: statusIn ? statusIn.value : 'todo',
+      startFormula: formula ? rawStart : '',
+      startDate,
+      endDate,
       days,
-      dependsOn,
-      pertX: 60 + (proj.tasks.length % 4) * 240,
-      pertY: 60 + Math.floor(proj.tasks.length / 4) * 140
+      dependencies: deps
     });
   }
 
-  recalculateFormulas(proj);
+  recalculateProjectDates(proj);
   saveState();
-  closeTaskModal();
-  switchView(currentView);
-}
-window.saveTaskFromModal = saveTaskFromModal;
+  window.closeTaskModal();
+  switchView(activeView);
+  return false;
+};
 
-function deleteTask(taskId, e) {
-  if (e) e.stopPropagation();
+window.deleteTask = function (taskId, ev) {
+  if (ev) ev.stopPropagation();
   const proj = getActiveProject();
   if (!proj) return;
-  proj.tasks = proj.tasks.filter(t => t.id !== taskId);
+  const idx = proj.tasks.findIndex(t => t.id === taskId);
+  if (idx === -1) return;
+  proj.tasks.splice(idx, 1);
   proj.tasks.forEach(t => {
-    if (t.dependsOn === taskId) t.dependsOn = '';
+    if (Array.isArray(t.dependencies)) {
+      t.dependencies = t.dependencies.filter(d => d !== taskId);
+    }
   });
-  recalculateFormulas(proj);
+  recalculateProjectDates(proj);
   saveState();
-  switchView(currentView);
-}
-window.deleteTask = deleteTask;
+  switchView(activeView);
+};
 
-/* ================= KANBAN VIEW ================= */
-function renderKanban(proj) {
-  const board = document.getElementById('kanbanBoard');
-  if (!board) return;
-
-  const warningTasks = proj.tasks.filter(t => {
-    const cls = getTaskColorClass(t);
-    return cls === 'status-overdue' || cls === 'status-warning';
-  });
+function renderKanban() {
+  const board = $(['kanbanBoard', 'kanbanColumns']);
+  const proj = getActiveProject();
+  if (!board || !proj) return;
 
   const cols = [
-    { key: 'Warning', title: '⚠️ Past Deadline / Warning', items: warningTasks, isAlert: true },
-    { key: 'Pending', title: 'Pending', items: proj.tasks.filter(t => t.status === 'Pending') },
-    { key: 'To Do', title: 'To Do', items: proj.tasks.filter(t => !t.status || t.status === 'To Do') },
-    { key: 'In Progress', title: 'In Progress', items: proj.tasks.filter(t => t.status === 'In Progress') },
-    { key: 'Completed', title: 'Completed', items: proj.tasks.filter(t => t.status === 'Completed' || t.status === 'Done') }
+    { key: 'warning', title: '⚠️ Past Deadline / Warning', items: [] },
+    { key: 'todo', title: 'To Do', items: [] },
+    { key: 'inprogress', title: 'In Progress', items: [] },
+    { key: 'done', title: 'Done', items: [] }
   ];
 
+  proj.tasks.forEach(t => {
+    const st = getTaskVisualState(t);
+    if (st.urgent) cols[0].items.push(t);
+    const target = cols.find(c => c.key === (t.status || 'todo'));
+    if (target) target.items.push(t);
+  });
+
   board.innerHTML = cols.map(col => `
-    <div class="kanban-col ${col.isAlert ? 'kanban-col-alert' : ''}"
+    <div class="kanban-col" data-status="${col.key}"
          ondragover="event.preventDefault()"
-         ondrop="handleKanbanDrop(event, '${col.key}')">
-      <div class="kanban-col-header">
-        <span>${col.title}</span>
+         ondrop="onKanbanDrop(event, '${col.key}')">
+      <div class="kanban-col-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <strong>${col.title}</strong>
         <span class="badge">${col.items.length}</span>
       </div>
-      <div class="kanban-cards">
+      <div class="kanban-cards" style="display:flex;flex-direction:column;gap:10px;min-height:120px;">
         ${col.items.map(t => {
-          const colorCls = getTaskColorClass(t);
+          const st = getTaskVisualState(t);
           return `
-            <div class="kanban-card ${colorCls}" draggable="true"
-                 ondragstart="draggedTaskId='${t.id}'"
-                 onclick="openTaskModal('${t.id}')">
-              <div class="kcard-top">
-                <span class="kcard-cat">${escapeHtml(t.category || 'Task')}</span>
-                <button class="kcard-del" onclick="deleteTask('${t.id}', event)">✕</button>
+            <div class="kanban-card" draggable="true"
+                 ondragstart="event.dataTransfer.setData('text/plain', '${t.id}')"
+                 onclick="openTaskModal('${t.id}')"
+                 style="border-left:4px solid ${st.color};background:#fff;padding:10px 12px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.08);cursor:pointer;">
+              <div style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;">
+                <strong style="font-size:14px;">${escapeHtml(t.title)}</strong>
+                <button type="button" class="btn-icon" onclick="deleteTask('${t.id}', event)">✕</button>
               </div>
-              <div class="kcard-title">${escapeHtml(t.title)}</div>
-              <div class="kcard-footer">
-                <span>👤 ${escapeHtml(t.owner || 'Unassigned')}</span>
-                <span>📅 ${t.start} → ${t.end}</span>
+              <div style="font-size:12px;color:#64748b;margin-top:4px;">
+                ${t.owner ? '👤 ' + escapeHtml(t.owner) + ' • ' : ''}${t.startDate} → ${t.endDate} (${t.days}d)
               </div>
-            </div>
-          `;
+              <div style="margin-top:6px;">
+                <span style="font-size:11px;padding:2px 7px;border-radius:99px;background:${st.bg};color:${st.color};font-weight:600;">${st.badge}</span>
+              </div>
+            </div>`;
         }).join('')}
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
-function handleKanbanDrop(e, targetCol) {
-  e.preventDefault();
-  if (targetCol === 'Warning' || !draggedTaskId) return;
+window.onKanbanDrop = function (ev, status) {
+  ev.preventDefault();
+  if (status === 'warning') return;
   const proj = getActiveProject();
   if (!proj) return;
-  const t = proj.tasks.find(x => x.id === draggedTaskId);
-  if (t) {
-    t.status = targetCol;
+  const taskId = ev.dataTransfer.getData('text/plain');
+  const task = proj.tasks.find(t => t.id === taskId);
+  if (task) {
+    task.status = status;
     saveState();
-    renderKanban(proj);
+    renderKanban();
   }
-  draggedTaskId = null;
-}
-window.handleKanbanDrop = handleKanbanDrop;
+};
 
-/* ================= GANTT VIEW ================= */
-function setGanttScale(scale) {
+window.setGanttScale = function (scale) {
   ganttScale = scale;
-  colPx = scale === 'day' ? 38 : 84;
-  document.getElementById('btnScaleWeek')?.classList.toggle('active', scale === 'week');
-  document.getElementById('btnScaleDay')?.classList.toggle('active', scale === 'day');
-  const proj = getActiveProject();
-  if (proj) renderGantt(proj);
-}
-window.setGanttScale = setGanttScale;
+  ganttZoom = scale === 'day' ? 32 : 48;
+  renderGantt();
+};
 
-function zoomGantt(delta) {
-  colPx = Math.max(24, Math.min(180, colPx + delta));
-  const proj = getActiveProject();
-  if (proj) renderGantt(proj);
-}
-window.zoomGantt = zoomGantt;
+window.zoomGantt = function (delta) {
+  ganttZoom = Math.max(20, Math.min(120, ganttZoom + delta));
+  renderGantt();
+};
 
-function sortGanttByDate() {
+window.sortGanttByStartDate = function () {
   const proj = getActiveProject();
   if (!proj) return;
-  const oldOrder = proj.tasks.map(t => t.id);
+  const oldIndexMap = new Map(proj.tasks.map((t, idx) => [t.id, idx + 1]));
   proj.tasks.sort((a, b) => {
-    const diff = parseDMY(a.start) - parseDMY(b.start);
-    return diff !== 0 ? diff : parseDMY(a.end) - parseDMY(b.end);
+    const da = parseDMY(a.startDate) || new Date(8640000000000000);
+    const db = parseDMY(b.startDate) || new Date(8640000000000000);
+    if (da - db !== 0) return da - db;
+    const ea = parseDMY(a.endDate) || da;
+    const eb = parseDMY(b.endDate) || db;
+    return ea - eb;
   });
-  rewriteFormulasAfterReorder(proj, oldOrder);
-  recalculateFormulas(proj);
+  rewriteFormulasAfterReorder(proj, oldIndexMap);
+  recalculateProjectDates(proj);
   saveState();
-  renderGantt(proj);
-}
-window.sortGanttByDate = sortGanttByDate;
+  renderGantt();
+};
 
-function moveRow(index, delta) {
-  const proj = getActiveProject();
-  if (!proj) return;
-  const newIndex = index + delta;
-  if (newIndex < 0 || newIndex >= proj.tasks.length) return;
-  const oldOrder = proj.tasks.map(t => t.id);
-  const [moved] = proj.tasks.splice(index, 1);
-  proj.tasks.splice(newIndex, 0, moved);
-  rewriteFormulasAfterReorder(proj, oldOrder);
-  recalculateFormulas(proj);
-  saveState();
-  renderGantt(proj);
-}
-window.moveRow = moveRow;
+function rewriteFormulasAfterReorder(proj, oldIndexMap) {
+  const idByOldRow = new Map();
+  oldIndexMap.forEach((oldRow, id) => idByOldRow.set(oldRow, id));
+  const newIndexMap = new Map(proj.tasks.map((t, idx) => [t.id, idx + 1]));
 
-function handleRowDrop(targetIdx) {
-  if (draggedRowIndex === null || draggedRowIndex === targetIdx) return;
-  const proj = getActiveProject();
-  if (!proj) return;
-  const oldOrder = proj.tasks.map(t => t.id);
-  const [moved] = proj.tasks.splice(draggedRowIndex, 1);
-  proj.tasks.splice(targetIdx, 0, moved);
-  draggedRowIndex = null;
-  rewriteFormulasAfterReorder(proj, oldOrder);
-  recalculateFormulas(proj);
-  saveState();
-  renderGantt(proj);
-}
-window.handleRowDrop = handleRowDrop;
-
-function rewriteFormulasAfterReorder(proj, oldOrder) {
   proj.tasks.forEach(t => {
-    if (t.formula && t.formula.startsWith('=')) {
-      const m = t.formula.match(/^=(\d+)([+-]\d+)?$/);
-      if (m) {
-        const oldRefIdx = parseInt(m[1], 10) - 1;
-        const refId = oldOrder[oldRefIdx];
-        const newRefIdx = proj.tasks.findIndex(x => x.id === refId);
-        if (newRefIdx !== -1) {
-          t.formula = `=${newRefIdx + 1}${m[2] || ''}`;
-        }
+    const f = parseFormula(t.startFormula);
+    if (f) {
+      const targetId = idByOldRow.get(f.rowNum);
+      const newRow = targetId ? newIndexMap.get(targetId) : null;
+      if (newRow) {
+        const sign = f.offset >= 0 ? '+' : '';
+        t.startFormula = `=${newRow}${f.offset !== 0 ? sign + f.offset : ''}`;
       }
     }
   });
 }
 
-function startColResize(e, colKey) {
-  e.preventDefault();
-  e.stopPropagation();
-  resizingCol = colKey;
-  resizeStartX = e.clientX;
-  resizeStartW = colWidths[colKey];
-}
-window.startColResize = startColResize;
+window.moveTaskRow = function (idx, dir) {
+  const proj = getActiveProject();
+  if (!proj) return;
+  const target = idx + dir;
+  if (target < 0 || target >= proj.tasks.length) return;
+  const oldIndexMap = new Map(proj.tasks.map((t, i) => [t.id, i + 1]));
+  const [moved] = proj.tasks.splice(idx, 1);
+  proj.tasks.splice(target, 0, moved);
+  rewriteFormulasAfterReorder(proj, oldIndexMap);
+  recalculateProjectDates(proj);
+  saveState();
+  renderGantt();
+};
 
-function updateCell(idx, field, val) {
+function renderGantt() {
+  const container = $(['ganttContainer', 'ganttWrapper']);
+  const proj = getActiveProject();
+  if (!container || !proj) return;
+
+  recalculateProjectDates(proj);
+
+  if (!proj.tasks.length) {
+    container.innerHTML = `<div style="padding:36px;text-align:center;color:#64748b;">No tasks in this project yet. Click <strong>+ Add Task</strong> to begin scheduling.</div>`;
+    return;
+  }
+
+  let minDate = null;
+  let maxDate = null;
+  proj.tasks.forEach(t => {
+    const s = parseDMY(t.startDate);
+    const e = parseDMY(t.endDate);
+    if (s && (!minDate || s < minDate)) minDate = s;
+    if (e && (!maxDate || e > maxDate)) maxDate = e;
+  });
+  if (!minDate) minDate = todayZero();
+  if (!maxDate) maxDate = addDays(minDate, 14);
+  minDate = addDays(minDate, -3);
+  maxDate = addDays(maxDate, 7);
+
+  const totalDays = Math.max(14, diffDaysInclusive(minDate, maxDate));
+  const pxPerDay = ganttScale === 'day' ? ganttZoom : ganttZoom / 7;
+  const timelineWidth = Math.ceil(totalDays * pxPerDay);
+  const rowHeight = 44;
+
+  let headerCells = '';
+  if (ganttScale === 'day') {
+    for (let i = 0; i < totalDays; i++) {
+      const d = addDays(minDate, i);
+      const isWknd = d.getDay() === 0 || d.getDay() === 6;
+      headerCells += `<div style="width:${pxPerDay}px;flex-shrink:0;text-align:center;font-size:11px;border-right:1px solid #e2e8f0;background:${isWknd ? '#f1f5f9' : '#f8fafc'};line-height:38px;">${d.getDate()}/${d.getMonth() + 1}</div>`;
+    }
+  } else {
+    for (let i = 0; i < totalDays; i += 7) {
+      const d = addDays(minDate, i);
+      const wWidth = Math.min(7, totalDays - i) * pxPerDay;
+      headerCells += `<div style="width:${wWidth}px;flex-shrink:0;text-align:center;font-size:11px;border-right:1px solid #e2e8f0;background:#f8fafc;line-height:38px;">${formatDDMM(d)}</div>`;
+    }
+  }
+
+  const tableRows = proj.tasks.map((t, idx) => {
+    const depsLabels = (t.dependencies || [])
+      .map(id => proj.tasks.findIndex(x => x.id === id))
+      .filter(i => i >= 0)
+      .map(i => '#' + (i + 1))
+      .join(', ');
+
+    return `
+      <tr style="height:${rowHeight}px;border-bottom:1px solid #e2e8f0;"
+          draggable="true"
+          ondragstart="dragRowIdx=${idx}"
+          ondragover="event.preventDefault()"
+          ondrop="onGanttRowDrop(event, ${idx})">
+        <td style="width:${colWidths.num}px;text-align:center;font-size:12px;color:#475569;cursor:grab;user-select:none;">
+          ⋮⋮ ${idx + 1}
+          <button type="button" onclick="moveTaskRow(${idx},-1)" style="border:none;background:none;cursor:pointer;padding:0 2px;">▲</button>
+          <button type="button" onclick="moveTaskRow(${idx},1)" style="border:none;background:none;cursor:pointer;padding:0 2px;">▼</button>
+        </td>
+        <td style="width:${colWidths.task}px;padding:0 6px;">
+          <input type="text" value="${escapeHtml(t.title)}" onchange="updateGanttCell(${idx}, 'title', this.value)" style="width:100%;border:1px solid transparent;background:transparent;font-size:13px;" />
+        </td>
+        <td style="width:${colWidths.owner}px;padding:0 6px;">
+          <input type="text" value="${escapeHtml(t.owner || '')}" onchange="updateGanttCell(${idx}, 'owner', this.value)" style="width:100%;border:1px solid transparent;background:transparent;font-size:12px;" />
+        </td>
+        <td style="width:${colWidths.start}px;padding:0 6px;">
+          <input type="text" value="${escapeHtml(t.startFormula || t.startDate)}" title="D/M/YYYY or =Row+Days (e.g. =1+3)" onchange="updateGanttCell(${idx}, 'start', this.value)" style="width:100%;border:1px solid #e2e8f0;border-radius:4px;padding:2px 4px;font-size:12px;" />
+        </td>
+        <td style="width:${colWidths.end}px;padding:0 6px;">
+          <input type="text" value="${escapeHtml(t.endDate)}" onchange="updateGanttCell(${idx}, 'end', this.value)" style="width:100%;border:1px solid #e2e8f0;border-radius:4px;padding:2px 4px;font-size:12px;" />
+        </td>
+        <td style="width:${colWidths.days}px;padding:0 6px;">
+          <input type="number" min="1" value="${t.days}" onchange="updateGanttCell(${idx}, 'days', this.value)" style="width:100%;border:1px solid #e2e8f0;border-radius:4px;padding:2px 4px;font-size:12px;text-align:center;" />
+        </td>
+        <td style="width:${colWidths.deps}px;padding:0 6px;font-size:12px;color:#475569;cursor:pointer;" onclick="openTaskModal('${t.id}')">
+          ${depsLabels || '—'}
+        </td>
+      </tr>`;
+  }).join('');
+
+  const barCoords = new Map();
+  const barsHtml = proj.tasks.map((t, idx) => {
+    const s = parseDMY(t.startDate) || minDate;
+    const e = parseDMY(t.endDate) || s;
+    const left = Math.round((s - minDate) / 86400000 * pxPerDay);
+    const width = Math.max(28, Math.round(diffDaysInclusive(s, e) * pxPerDay));
+    const top = idx * rowHeight + 6;
+    const height = rowHeight - 12;
+    barCoords.set(t.id, { left, right: left + width, midY: idx * rowHeight + rowHeight / 2 });
+    const st = getTaskVisualState(t);
+
+    return `
+      <div class="gantt-bar" data-idx="${idx}"
+           onmousedown="startBarDrag(event, ${idx}, 'move')"
+           style="position:absolute;left:${left}px;top:${top}px;width:${width}px;height:${height}px;background:${st.color};color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 6px;font-size:10px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,0.15);overflow:hidden;user-select:none;">
+        <div onmousedown="startBarDrag(event, ${idx}, 'left')" style="position:absolute;left:0;top:0;bottom:0;width:6px;cursor:ew-resize;"></div>
+        <span style="opacity:0.9;flex-shrink:0;">${formatDDMM(s)}</span>
+        <span style="padding:0 4px;line-height:1.1;text-align:center;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;">${escapeHtml(t.title)}</span>
+        <span style="opacity:0.9;flex-shrink:0;">${formatDDMM(e)}</span>
+        <div onmousedown="startBarDrag(event, ${idx}, 'right')" style="position:absolute;right:0;top:0;bottom:0;width:6px;cursor:ew-resize;"></div>
+      </div>`;
+  }).join('');
+
+  let arrowsSvg = '';
+  proj.tasks.forEach(t => {
+    const to = barCoords.get(t.id);
+    if (!to || !Array.isArray(t.dependencies)) return;
+    t.dependencies.forEach(depId => {
+      const from = barCoords.get(depId);
+      if (!from) return;
+      const midX = from.right + 10;
+      const d = `M ${from.right} ${from.midY} L ${midX} ${from.midY} L ${midX} ${to.midY} L ${to.left} ${to.midY}`;
+      arrowsSvg += `<path d="${d}" fill="none" stroke="#ef4444" stroke-width="1.25" stroke-dasharray="4,3" marker-end="url(#ganttArrow)" />`;
+    });
+  });
+
+  const totalHeight = proj.tasks.length * rowHeight;
+  container.innerHTML = `
+    <div style="display:flex;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;background:#fff;">
+      <div style="overflow-x:auto;flex-shrink:0;max-width:58%;border-right:2px solid #cbd5e1;">
+        <table style="border-collapse:collapse;table-layout:fixed;">
+          <thead>
+            <tr style="height:38px;background:#f8fafc;border-bottom:1px solid #cbd5e1;font-size:12px;">
+              ${renderResizableTh('#', 'num')}
+              ${renderResizableTh('Task / Description', 'task')}
+              ${renderResizableTh('Owner', 'owner')}
+              ${renderResizableTh('Start', 'start')}
+              ${renderResizableTh('End', 'end')}
+              ${renderResizableTh('Days', 'days')}
+              ${renderResizableTh('Depends', 'deps')}
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+      <div style="overflow-x:auto;flex:1;position:relative;">
+        <div style="width:${timelineWidth}px;">
+          <div style="display:flex;height:38px;border-bottom:1px solid #cbd5e1;">${headerCells}</div>
+          <div style="position:relative;height:${totalHeight}px;background-image:linear-gradient(to bottom, transparent ${rowHeight - 1}px, #f1f5f9 ${rowHeight}px);background-size:100% ${rowHeight}px;">
+            <svg width="${timelineWidth}" height="${totalHeight}" style="position:absolute;top:0;left:0;pointer-events:none;">
+              <defs>
+                <marker id="ganttArrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                  <path d="M0,0 L6,3 L0,6 Z" fill="#ef4444" />
+                </marker>
+              </defs>
+              ${arrowsSvg}
+            </svg>
+            ${barsHtml}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderResizableTh(label, key) {
+  return `<th style="width:${colWidths[key]}px;position:relative;padding:0 6px;text-align:left;border-right:1px solid #e2e8f0;user-select:none;">
+    ${label}
+    <div onmousedown="startColResize(event, '${key}')" style="position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;"></div>
+  </th>`;
+}
+
+window.startColResize = function (ev, key) {
+  ev.preventDefault();
+  const startX = ev.clientX;
+  const startW = colWidths[key];
+  function onMove(e) {
+    colWidths[key] = Math.max(44, startW + (e.clientX - startX));
+    renderGantt();
+  }
+  function onUp() {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    saveWidths();
+  }
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+};
+
+window.onGanttRowDrop = function (ev, targetIdx) {
+  ev.preventDefault();
+  if (dragRowIdx === null || dragRowIdx === targetIdx) return;
+  const proj = getActiveProject();
+  if (!proj) return;
+  const oldIndexMap = new Map(proj.tasks.map((t, i) => [t.id, i + 1]));
+  const [moved] = proj.tasks.splice(dragRowIdx, 1);
+  proj.tasks.splice(targetIdx, 0, moved);
+  dragRowIdx = null;
+  rewriteFormulasAfterReorder(proj, oldIndexMap);
+  recalculateProjectDates(proj);
+  saveState();
+  renderGantt();
+};
+
+window.updateGanttCell = function (idx, field, val) {
   const proj = getActiveProject();
   if (!proj || !proj.tasks[idx]) return;
   const t = proj.tasks[idx];
   val = String(val).trim();
 
-  if (field === 'title') t.title = val || t.title;
-  if (field === 'owner') t.owner = val;
-  if (field === 'start') {
-    if (val.startsWith('=')) {
-      t.formula = val.replace(/\s+/g, '');
+  if (field === 'title' && val) t.title = val;
+  else if (field === 'owner') t.owner = val;
+  else if (field === 'days') {
+    const d = Math.max(1, parseInt(val, 10) || 1);
+    t.days = d;
+    const s = parseDMY(t.startDate);
+    if (s) t.endDate = formatDMY(addDays(s, d - 1));
+  } else if (field === 'start') {
+    const f = parseFormula(val);
+    if (f) {
+      t.startFormula = val;
     } else {
-      t.formula = '';
-      t.start = formatDMY(parseDMY(val));
-      const dur = Math.max(1, parseInt(t.days, 10) || 1);
-      t.end = formatDMY(addDays(parseDMY(t.start), dur - 1));
+      const s = parseDMY(val);
+      if (s) {
+        t.startFormula = '';
+        t.startDate = formatDMY(s);
+        t.endDate = formatDMY(addDays(s, (t.days || 1) - 1));
+      }
+    }
+  } else if (field === 'end') {
+    const e = parseDMY(val);
+    const s = parseDMY(t.startDate);
+    if (e && s && e >= s) {
+      t.endDate = formatDMY(e);
+      t.days = diffDaysInclusive(s, e);
     }
   }
-  if (field === 'end') {
-    t.formula = '';
-    t.end = formatDMY(parseDMY(val));
-    if (parseDMY(t.end) < parseDMY(t.start)) t.start = t.end;
-    t.days = diffDaysInclusive(t.start, t.end);
-  }
-  if (field === 'days') {
-    const newDays = Math.max(1, parseInt(val, 10) || 1);
-    t.days = newDays;
-    t.end = formatDMY(addDays(parseDMY(t.start), newDays - 1));
-  }
-  if (field === 'dependsOn') {
-    t.dependsOn = val;
-    if (!val) t.formula = '';
-  }
 
-  recalculateFormulas(proj);
+  recalculateProjectDates(proj);
   saveState();
-  renderGantt(proj);
-}
-window.updateCell = updateCell;
+  renderGantt();
+};
 
-function getISOWeek(d) {
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNum = date.getUTCDay() || 7;
-  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
-}
-
-function renderGantt(proj) {
-  const container = document.getElementById('ganttContainer');
-  if (!container) return;
-
-  if (proj.tasks.length === 0) {
-    container.innerHTML = `<div class="empty-state" style="padding:40px; text-align:center;">No tasks yet. Click <strong>+ Add Task</strong> to build your schedule.</div>`;
-    return;
-  }
-
-  let minDate = parseDMY(proj.tasks[0].start);
-  let maxDate = parseDMY(proj.tasks[0].end);
-  proj.tasks.forEach(t => {
-    const s = parseDMY(t.start);
-    const e = parseDMY(t.end);
-    if (s < minDate) minDate = s;
-    if (e > maxDate) maxDate = e;
-  });
-
-  minDate = addDays(minDate, -3);
-  maxDate = addDays(maxDate, 7);
-
-  if (ganttScale === 'week') {
-    const dow = (minDate.getDay() + 6) % 7;
-    minDate = addDays(minDate, -dow);
-  }
-
-  const totalDays = Math.max(14, Math.round((maxDate - minDate) / 86400000) + 1);
-  const pxPerDay = ganttScale === 'day' ? colPx : (colPx / 7);
-  const timelineWidth = Math.ceil(totalDays * pxPerDay);
-
-  let headerColsHtml = '';
-  if (ganttScale === 'week') {
-    const numWeeks = Math.ceil(totalDays / 7);
-    for (let w = 0; w < numWeeks; w++) {
-      const wStart = addDays(minDate, w * 7);
-      const wkNum = getISOWeek(wStart);
-      headerColsHtml += `<div class="tl-col" style="width:${colPx}px">W${wkNum}<br><small>${wStart.getDate()}/${wStart.getMonth() + 1}</small></div>`;
-    }
-  } else {
-    const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-    for (let d = 0; d < totalDays; d++) {
-      const cur = addDays(minDate, d);
-      const isWknd = cur.getDay() === 0 || cur.getDay() === 6;
-      headerColsHtml += `<div class="tl-col ${isWknd ? 'wknd' : ''}" style="width:${colPx}px">${cur.getDate()}/${cur.getMonth() + 1}<br><small>${dayNames[cur.getDay()]}</small></div>`;
-    }
-  }
-
-  const rowHeight = 46;
-  const totalTableW = Object.values(colWidths).reduce((a, b) => a + b, 0);
-
-  const tableRowsHtml = proj.tasks.map((t, idx) => `
-    <div class="gantt-row" style="height:${rowHeight}px"
-         draggable="true"
-         ondragstart="draggedRowIndex=${idx}"
-         ondragover="event.preventDefault()"
-         ondrop="handleRowDrop(${idx})">
-      <div class="gcell idx-cell" style="width:${colWidths.idx}px">
-        <span class="drag-grip" title="Drag row">⋮⋮</span>
-        <span>${idx + 1}</span>
-        <span class="row-arrows">
-          <button onclick="moveRow(${idx}, -1)" title="Move Up">▲</button>
-          <button onclick="moveRow(${idx}, 1)" title="Move Down">▼</button>
-        </span>
-      </div>
-      <div class="gcell" style="width:${colWidths.name}px">
-        <input class="ginput" value="${escapeHtml(t.title)}" onchange="updateCell(${idx}, 'title', this.value)" />
-      </div>
-      <div class="gcell" style="width:${colWidths.owner}px">
-        <input class="ginput" value="${escapeHtml(t.owner || '')}" onchange="updateCell(${idx}, 'owner', this.value)" />
-      </div>
-      <div class="gcell" style="width:${colWidths.start}px">
-        <input class="ginput" value="${escapeHtml(t.formula || t.start)}" title="Enter D/M/YYYY or formula like =1+3" onchange="updateCell(${idx}, 'start', this.value)" />
-      </div>
-      <div class="gcell" style="width:${colWidths.end}px">
-        <input class="ginput" value="${escapeHtml(t.end)}" onchange="updateCell(${idx}, 'end', this.value)" />
-      </div>
-      <div class="gcell" style="width:${colWidths.days}px">
-        <input class="ginput num" type="number" min="1" value="${t.days}" onchange="updateCell(${idx}, 'days', this.value)" />
-      </div>
-      <div class="gcell" style="width:${colWidths.dep}px">
-        <select class="ginput" onchange="updateCell(${idx}, 'dependsOn', this.value)">
-          <option value="">None</option>
-          ${proj.tasks.map((opt, oi) => oi !== idx ? `<option value="${opt.id}" ${t.dependsOn === opt.id ? 'selected' : ''}>#${oi + 1} ${escapeHtml(opt.title)}</option>` : '').join('')}
-        </select>
-      </div>
-    </div>
-  `).join('');
-
-  const barCoords = {};
-  const barsHtml = proj.tasks.map((t, idx) => {
-    const sDate = parseDMY(t.start);
-    const eDate = parseDMY(t.end);
-    const offsetDays = Math.round((sDate - minDate) / 86400000);
-    const durDays = Math.max(1, Math.round((eDate - sDate) / 86400000) + 1);
-    const left = Math.max(0, offsetDays * pxPerDay);
-    const width = Math.max(28, durDays * pxPerDay);
-    const top = idx * rowHeight + 6;
-    const height = rowHeight - 12;
-    const bg = getTaskHexColor(t);
-
-    barCoords[t.id] = { left, right: left + width, midY: idx * rowHeight + rowHeight / 2 };
-
-    return `
-      <div class="gantt-bar" style="left:${left}px; top:${top}px; width:${width}px; height:${height}px; background:${bg};"
-           onmousedown="startBarDrag(event, ${idx}, 'move', ${pxPerDay})"
-           ondblclick="openTaskModal('${t.id}')">
-        <div class="bar-handle left" onmousedown="startBarDrag(event, ${idx}, 'left', ${pxPerDay})"></div>
-        <span class="bar-date">${formatShortDM(t.start)}</span>
-        <span class="bar-label">${escapeHtml(t.title)}</span>
-        <span class="bar-date">${formatShortDM(t.end)}</span>
-        <div class="bar-handle right" onmousedown="startBarDrag(event, ${idx}, 'right', ${pxPerDay})"></div>
-      </div>
-    `;
-  }).join('');
-
-  const arrowsSvg = proj.tasks.map(t => {
-    if (!t.dependsOn || !barCoords[t.dependsOn] || !barCoords[t.id]) return '';
-    const from = barCoords[t.dependsOn];
-    const to = barCoords[t.id];
-    const x1 = from.right;
-    const y1 = from.midY;
-    const x2 = to.left;
-    const y2 = to.midY;
-    const midX = x1 + 12;
-    const path = x2 >= x1 + 16
-      ? `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`
-      : `M ${x1} ${y1} L ${x1 + 10} ${y1} L ${x1 + 10} ${(y1 + y2) / 2} L ${x2 - 10} ${(y1 + y2) / 2} L ${x2 - 10} ${y2} L ${x2} ${y2}`;
-    return `<path d="${path}" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-dasharray="4,3" marker-end="url(#arrowhead)"/>`;
-  }).join('');
-
-  const totalBodyH = proj.tasks.length * rowHeight;
-
-  container.innerHTML = `
-    <div class="gantt-split">
-      <div class="gantt-left" style="width:${totalTableW}px; min-width:${totalTableW}px">
-        <div class="gantt-header-row">
-          <div class="ghcell" style="width:${colWidths.idx}px">#<div class="col-resizer" onmousedown="startColResize(event,'idx')"></div></div>
-          <div class="ghcell" style="width:${colWidths.name}px">Task / Description<div class="col-resizer" onmousedown="startColResize(event,'name')"></div></div>
-          <div class="ghcell" style="width:${colWidths.owner}px">Owner<div class="col-resizer" onmousedown="startColResize(event,'owner')"></div></div>
-          <div class="ghcell" style="width:${colWidths.start}px">Start<div class="col-resizer" onmousedown="startColResize(event,'start')"></div></div>
-          <div class="ghcell" style="width:${colWidths.end}px">End<div class="col-resizer" onmousedown="startColResize(event,'end')"></div></div>
-          <div class="ghcell" style="width:${colWidths.days}px">Days<div class="col-resizer" onmousedown="startColResize(event,'days')"></div></div>
-          <div class="ghcell" style="width:${colWidths.dep}px">Depends On<div class="col-resizer" onmousedown="startColResize(event,'dep')"></div></div>
-        </div>
-        <div class="gantt-body-left">${tableRowsHtml}</div>
-      </div>
-      <div class="gantt-right">
-        <div class="tl-header" style="width:${timelineWidth}px">${headerColsHtml}</div>
-        <div class="tl-body" style="width:${timelineWidth}px; height:${totalBodyH}px">
-          <svg class="gantt-svg" width="${timelineWidth}" height="${totalBodyH}">
-            <defs>
-              <marker id="arrowhead" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                <polygon points="0 0, 7 3.5, 0 7" fill="#dc2626" />
-              </marker>
-            </defs>
-            ${arrowsSvg}
-          </svg>
-          ${barsHtml}
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function startBarDrag(e, idx, mode, pxPerDay) {
-  e.preventDefault();
-  e.stopPropagation();
+window.startBarDrag = function (ev, idx, mode) {
+  ev.stopPropagation();
+  ev.preventDefault();
   const proj = getActiveProject();
-  if (!proj) return;
+  if (!proj || !proj.tasks[idx]) return;
   const t = proj.tasks[idx];
-  barDragState = {
-    idx,
-    mode,
-    pxPerDay,
-    startX: e.clientX,
-    origStart: parseDMY(t.start),
-    origEnd: parseDMY(t.end)
-  };
-}
-window.startBarDrag = startBarDrag;
+  const origStart = parseDMY(t.startDate);
+  const origEnd = parseDMY(t.endDate);
+  if (!origStart || !origEnd) return;
 
-/* ================= PERT VIEW ================= */
-function autoLayoutPert() {
-  const proj = getActiveProject();
-  if (!proj) return;
-  const levels = {};
-  proj.tasks.forEach(t => { levels[t.id] = 0; });
+  const pxPerDay = ganttScale === 'day' ? ganttZoom : ganttZoom / 7;
+  const startX = ev.clientX;
 
-  for (let i = 0; i < proj.tasks.length; i++) {
-    proj.tasks.forEach(t => {
-      if (t.dependsOn && levels[t.dependsOn] !== undefined) {
-        levels[t.id] = Math.max(levels[t.id], levels[t.dependsOn] + 1);
+  function onMove(e) {
+    const deltaDays = Math.round((e.clientX - startX) / pxPerDay);
+    if (mode === 'move') {
+      t.startFormula = '';
+      t.startDate = formatDMY(addDays(origStart, deltaDays));
+      t.endDate = formatDMY(addDays(origEnd, deltaDays));
+    } else if (mode === 'left') {
+      t.startFormula = '';
+      const ns = addDays(origStart, deltaDays);
+      if (ns <= origEnd) {
+        t.startDate = formatDMY(ns);
+        t.days = diffDaysInclusive(ns, origEnd);
       }
-    });
+    } else if (mode === 'right') {
+      const ne = addDays(origEnd, deltaDays);
+      if (ne >= origStart) {
+        t.endDate = formatDMY(ne);
+        t.days = diffDaysInclusive(origStart, ne);
+      }
+    }
+    recalculateProjectDates(proj);
+    renderGantt();
   }
 
-  const stageCounts = {};
-  proj.tasks.forEach(t => {
-    const lv = levels[t.id] || 0;
-    const rowInStage = stageCounts[lv] || 0;
-    stageCounts[lv] = rowInStage + 1;
-    t.pertX = 50 + lv * 260;
-    t.pertY = 50 + rowInStage * 135;
-  });
+  function onUp() {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    saveState();
+  }
 
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+};
+
+window.resetPertLayout = function () {
+  const proj = getActiveProject();
+  if (!proj) return;
+  proj.tasks.forEach(t => { delete t.pertPos; });
   saveState();
-  renderPert(proj);
-}
-window.autoLayoutPert = autoLayoutPert;
+  renderPert();
+};
 
-function renderPert(proj) {
-  const canvas = document.getElementById('pertCanvas');
-  if (!canvas) return;
+function renderPert() {
+  const container = $(['pertContainer', 'pertCanvasWrapper']);
+  const proj = getActiveProject();
+  if (!container || !proj) return;
 
-  if (proj.tasks.length === 0) {
-    canvas.innerHTML = `<div class="empty-state" style="padding:40px; text-align:center;">No tasks yet. Add tasks to generate the PERT network diagram.</div>`;
+  if (!proj.tasks.length) {
+    container.innerHTML = `<div style="padding:36px;text-align:center;color:#64748b;">Add tasks with dependencies in the Kanban or Gantt view to generate the PERT network diagram.</div>`;
     return;
   }
 
-  const es = {}, ef = {};
-  proj.tasks.forEach(t => { es[t.id] = 0; ef[t.id] = t.days || 1; });
-  for (let i = 0; i < proj.tasks.length; i++) {
+  const taskMap = new Map(proj.tasks.map(t => [t.id, t]));
+  const es = new Map();
+  const ef = new Map();
+  const stage = new Map();
+
+  for (let pass = 0; pass < proj.tasks.length + 1; pass++) {
     proj.tasks.forEach(t => {
-      if (t.dependsOn && ef[t.dependsOn] !== undefined) {
-        es[t.id] = Math.max(es[t.id], ef[t.dependsOn]);
-      }
-      ef[t.id] = es[t.id] + (t.days || 1);
+      const deps = (t.dependencies || []).filter(id => taskMap.has(id));
+      let maxPrevEf = 0;
+      let maxPrevStage = -1;
+      deps.forEach(dId => {
+        maxPrevEf = Math.max(maxPrevEf, ef.get(dId) || 0);
+        maxPrevStage = Math.max(maxPrevStage, stage.get(dId) ?? 0);
+      });
+      es.set(t.id, maxPrevEf);
+      ef.set(t.id, maxPrevEf + (t.days || 1));
+      stage.set(t.id, maxPrevStage + 1);
     });
   }
-  const projectEnd = Math.max(...Object.values(ef), 1);
-  const ls = {}, lf = {};
-  proj.tasks.forEach(t => { lf[t.id] = projectEnd; ls[t.id] = projectEnd - (t.days || 1); });
-  for (let i = 0; i < proj.tasks.length; i++) {
+
+  let projectDuration = 0;
+  ef.forEach(val => { projectDuration = Math.max(projectDuration, val); });
+
+  const lf = new Map();
+  const ls = new Map();
+  proj.tasks.forEach(t => {
+    lf.set(t.id, projectDuration);
+    ls.set(t.id, projectDuration - (t.days || 1));
+  });
+
+  for (let pass = 0; pass < proj.tasks.length + 1; pass++) {
     proj.tasks.forEach(t => {
-      if (t.dependsOn && ls[t.id] !== undefined) {
-        lf[t.dependsOn] = Math.min(lf[t.dependsOn], ls[t.id]);
-        const pred = proj.tasks.find(x => x.id === t.dependsOn);
-        if (pred) ls[pred.id] = lf[pred.id] - (pred.days || 1);
+      const successors = proj.tasks.filter(s => (s.dependencies || []).includes(t.id));
+      if (successors.length) {
+        let minSuccLs = projectDuration;
+        successors.forEach(s => {
+          minSuccLs = Math.min(minSuccLs, ls.get(s.id) ?? projectDuration);
+        });
+        lf.set(t.id, minSuccLs);
+        ls.set(t.id, minSuccLs - (t.days || 1));
       }
     });
   }
 
-  let maxX = 900, maxY = 560;
-  proj.tasks.forEach((t, idx) => {
-    if (typeof t.pertX !== 'number') t.pertX = 50 + (idx % 4) * 260;
-    if (typeof t.pertY !== 'number') t.pertY = 50 + Math.floor(idx / 4) * 135;
-    maxX = Math.max(maxX, t.pertX + 260);
-    maxY = Math.max(maxY, t.pertY + 160);
+  const stageCounts = new Map();
+  const nodeW = 200;
+  const nodeH = 92;
+
+  proj.tasks.forEach(t => {
+    if (!t.pertPos) {
+      const stg = stage.get(t.id) || 0;
+      const row = stageCounts.get(stg) || 0;
+      stageCounts.set(stg, row + 1);
+      t.pertPos = { x: 40 + stg * 270, y: 40 + row * 130 };
+    }
+  });
+
+  let maxW = 900;
+  let maxH = 520;
+  proj.tasks.forEach(t => {
+    maxW = Math.max(maxW, t.pertPos.x + nodeW + 80);
+    maxH = Math.max(maxH, t.pertPos.y + nodeH + 80);
+  });
+
+  let edgesSvg = '';
+  proj.tasks.forEach(t => {
+    const tCrit = ((ls.get(t.id) || 0) - (es.get(t.id) || 0)) <= 0;
+    (t.dependencies || []).forEach(depId => {
+      const pred = taskMap.get(depId);
+      if (!pred) return;
+      const pCrit = ((ls.get(pred.id) || 0) - (es.get(pred.id) || 0)) <= 0;
+      const isCritEdge = tCrit && pCrit && (ef.get(pred.id) === es.get(t.id));
+      const x1 = pred.pertPos.x + nodeW;
+      const y1 = pred.pertPos.y + nodeH / 2;
+      const x2 = t.pertPos.x;
+      const y2 = t.pertPos.y + nodeH / 2;
+      const cx = (x1 + x2) / 2;
+      const color = isCritEdge ? '#dc2626' : '#64748b';
+      const width = isCritEdge ? 2.2 : 1.3;
+      edgesSvg += `<path d="M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}" fill="none" stroke="${color}" stroke-width="${width}" marker-end="url(#${isCritEdge ? 'pertCritArrow' : 'pertArrow'})" />`;
+    });
   });
 
   const nodesHtml = proj.tasks.map((t, idx) => {
-    const slack = (ls[t.id] || 0) - (es[t.id] || 0);
-    const isCrit = slack <= 0;
+    const slack = Math.max(0, (ls.get(t.id) || 0) - (es.get(t.id) || 0));
+    const isCrit = slack === 0;
     return `
-      <div class="pert-node ${isCrit ? 'pert-critical' : ''}"
-           style="left:${t.pertX}px; top:${t.pertY}px"
-           onmousedown="startPertDrag(event, '${t.id}')"
-           ondblclick="openTaskModal('${t.id}')">
-        <div class="pert-node-hdr">
-          <span>#${idx + 1} ${escapeHtml(t.owner || '')}</span>
-          <span>${isCrit ? 'CRITICAL' : 'Slack: ' + slack + 'd'}</span>
+      <div onmousedown="startPertNodeDrag(event, '${t.id}')"
+           style="position:absolute;left:${t.pertPos.x}px;top:${t.pertPos.y}px;width:${nodeW}px;height:${nodeH}px;background:#fff;border:2px solid ${isCrit ? '#dc2626' : '#94a3b8'};border-radius:8px;padding:8px 10px;box-shadow:0 2px 6px rgba(0,0,0,0.08);cursor:move;user-select:none;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:${isCrit ? '#dc2626' : '#64748b'};font-weight:700;">
+          <span>#${idx + 1} ${isCrit ? '• CRITICAL' : ''}</span>
+          <span>${t.days}d • Slack ${slack}d</span>
         </div>
-        <div class="pert-node-title">${escapeHtml(t.title)}</div>
-        <div class="pert-node-meta">
-          <span>⏱ ${t.days}d</span>
-          <span>${formatShortDM(t.start)} - ${formatShortDM(t.end)}</span>
-        </div>
+        <div style="font-size:13px;font-weight:600;margin:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.title)}</div>
+        <div style="font-size:11px;color:#475569;">${t.startDate} → ${t.endDate}</div>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="overflow:auto;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;position:relative;height:560px;">
+      <div style="position:relative;width:${maxW}px;height:${maxH}px;">
+        <svg width="${maxW}" height="${maxH}" style="position:absolute;top:0;left:0;pointer-events:none;">
+          <defs>
+            <marker id="pertArrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+              <path d="M0,0 L7,3.5 L0,7 Z" fill="#64748b" />
+            </marker>
+            <marker id="pertCritArrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+              <path d="M0,0 L7,3.5 L0,7 Z" fill="#dc2626" />
+            </marker>
+          </defs>
+          ${edgesSvg}
+        </svg>
+        ${nodesHtml}
       </div>
-    `;
-  }).join('');
-
-  const edgesHtml = proj.tasks.map(t => {
-    if (!t.dependsOn) return '';
-    const pred = proj.tasks.find(x => x.id === t.dependsOn);
-    if (!pred) return '';
-    const x1 = pred.pertX + 210;
-    const y1 = pred.pertY + 46;
-    const x2 = t.pertX;
-    const y2 = t.pertY + 46;
-    const isCrit = ((ls[t.id] - es[t.id]) <= 0) && ((ls[pred.id] - es[pred.id]) <= 0);
-    const stroke = isCrit ? '#dc2626' : '#64748b';
-    const marker = isCrit ? 'url(#pertArrowCrit)' : 'url(#pertArrow)';
-    return `<path d="M ${x1} ${y1} C ${x1 + 40} ${y1}, ${x2 - 40} ${y2}, ${x2} ${y2}" fill="none" stroke="${stroke}" stroke-width="${isCrit ? 2.2 : 1.5}" marker-end="${marker}" />`;
-  }).join('');
-
-  canvas.innerHTML = `
-    <div class="pert-stage" style="width:${maxX}px; height:${maxY}px">
-      <svg class="pert-svg" width="${maxX}" height="${maxY}">
-        <defs>
-          <marker id="pertArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-            <polygon points="0 0, 8 4, 0 8" fill="#64748b" />
-          </marker>
-          <marker id="pertArrowCrit" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-            <polygon points="0 0, 8 4, 0 8" fill="#dc2626" />
-          </marker>
-        </defs>
-        ${edgesHtml}
-      </svg>
-      ${nodesHtml}
-    </div>
-  `;
+    </div>`;
 }
 
-function startPertDrag(e, taskId) {
-  e.preventDefault();
+window.startPertNodeDrag = function (ev, taskId) {
+  ev.preventDefault();
   const proj = getActiveProject();
   if (!proj) return;
-  const t = proj.tasks.find(x => x.id === taskId);
-  if (!t) return;
-  pertDragState = {
-    taskId,
-    startX: e.clientX,
-    startY: e.clientY,
-    origX: t.pertX,
-    origY: t.pertY
-  };
-}
-window.startPertDrag = startPertDrag;
+  const task = proj.tasks.find(t => t.id === taskId);
+  if (!task || !task.pertPos) return;
+  const startX = ev.clientX;
+  const startY = ev.clientY;
+  const origX = task.pertPos.x;
+  const origY = task.pertPos.y;
 
-/* ================= GLOBAL MOUSE HANDLERS ================= */
-function handleGlobalMouseMove(e) {
-  if (resizingCol) {
-    const delta = e.clientX - resizeStartX;
-    colWidths[resizingCol] = Math.max(45, resizeStartW + delta);
-    const proj = getActiveProject();
-    if (proj && currentView === 'gantt') renderGantt(proj);
-    return;
+  function onMove(e) {
+    task.pertPos.x = Math.max(10, origX + (e.clientX - startX));
+    task.pertPos.y = Math.max(10, origY + (e.clientY - startY));
+    renderPert();
   }
-
-  if (barDragState) {
-    const proj = getActiveProject();
-    if (!proj) return;
-    const t = proj.tasks[barDragState.idx];
-    if (!t) return;
-    const deltaDays = Math.round((e.clientX - barDragState.startX) / barDragState.pxPerDay);
-    if (barDragState.mode === 'move') {
-      t.formula = '';
-      t.start = formatDMY(addDays(barDragState.origStart, deltaDays));
-      t.end = formatDMY(addDays(barDragState.origEnd, deltaDays));
-    } else if (barDragState.mode === 'left') {
-      t.formula = '';
-      let ns = addDays(barDragState.origStart, deltaDays);
-      if (ns > barDragState.origEnd) ns = barDragState.origEnd;
-      t.start = formatDMY(ns);
-      t.days = diffDaysInclusive(t.start, t.end);
-    } else if (barDragState.mode === 'right') {
-      let ne = addDays(barDragState.origEnd, deltaDays);
-      if (ne < barDragState.origStart) ne = barDragState.origStart;
-      t.end = formatDMY(ne);
-      t.days = diffDaysInclusive(t.start, t.end);
-    }
-    recalculateFormulas(proj);
-    renderGantt(proj);
-    return;
-  }
-
-  if (pertDragState) {
-    const proj = getActiveProject();
-    if (!proj) return;
-    const t = proj.tasks.find(x => x.id === pertDragState.taskId);
-    if (!t) return;
-    t.pertX = Math.max(10, pertDragState.origX + (e.clientX - pertDragState.startX));
-    t.pertY = Math.max(10, pertDragState.origY + (e.clientY - pertDragState.startY));
-    renderPert(proj);
-  }
-}
-
-function handleGlobalMouseUp() {
-  if (resizingCol) {
-    resizingCol = null;
-    saveWidths();
-  }
-  if (barDragState) {
-    barDragState = null;
+  function onUp() {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
     saveState();
   }
-  if (pertDragState) {
-    pertDragState = null;
-    saveState();
-  }
-}
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+};
 
-/* ================= EXPORT / IMPORT ================= */
-function exportJSON() {
-  const blob = new Blob([JSON.stringify(projects, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'kanban_gantt_pert_backup.json';
-  a.click();
-}
-window.exportJSON = exportJSON;
+window.exportJSON = function () {
+  const payload = JSON.stringify({ projects, colWidths }, null, 2);
+  downloadBlob(payload, 'kanban_gantt_backup.json', 'application/json');
+};
 
-function importJSON(e) {
-  const file = e.target.files[0];
+window.importJSON = function (ev) {
+  const file = ev && ev.target && ev.target.files ? ev.target.files[0] : null;
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = function(evt) {
+  reader.onload = function (e) {
     try {
-      const imported = JSON.parse(evt.target.result);
-      if (Array.isArray(imported)) {
-        projects = imported;
-        saveState();
-        showDashboard();
-        alert('Projects imported successfully!');
-      } else {
-        alert('Invalid JSON backup file.');
-      }
+      const data = JSON.parse(e.target.result);
+      if (Array.isArray(data)) projects = data;
+      else if (data && Array.isArray(data.projects)) projects = data.projects;
+      if (data && data.colWidths) colWidths = Object.assign(colWidths, data.colWidths);
+      saveState();
+      saveWidths();
+      showDashboard();
     } catch (err) {
-      alert('Failed to parse JSON file.');
+      alert('Invalid JSON backup file.');
     }
   };
   reader.readAsText(file);
-  e.target.value = '';
-}
-window.importJSON = importJSON;
+};
 
-function exportCSV() {
+window.exportCSV = function () {
   const proj = getActiveProject();
   if (!proj) return;
-  const headers = ['Row', 'Task Name', 'Category', 'Owner', 'Status', 'Start Date', 'End Date', 'Days', 'Formula', 'Depends On'];
-  const rows = proj.tasks.map((t, idx) => {
-    const predIdx = proj.tasks.findIndex(x => x.id === t.dependsOn);
-    const depLabel = predIdx !== -1 ? `#${predIdx + 1} ${proj.tasks[predIdx].title}` : '';
-    return [
-      idx + 1,
-      `"${(t.title || '').replace(/"/g, '""')}"`,
-      `"${(t.category || '').replace(/"/g, '""')}"`,
-      `"${(t.owner || '').replace(/"/g, '""')}"`,
-      `"${(t.status || '').replace(/"/g, '""')}"`,
-      t.start,
-      t.end,
-      t.days,
-      `"${(t.formula || '').replace(/"/g, '""')}"`,
-      `"${depLabel.replace(/"/g, '""')}"`
-    ].join(',');
+  const rows = [['Row', 'Task Name', 'Category', 'Owner', 'Status', 'Start Date', 'End Date', 'Days', 'Formula', 'Depends On']];
+  proj.tasks.forEach((t, idx) => {
+    const deps = (t.dependencies || [])
+      .map(id => proj.tasks.findIndex(x => x.id === id) + 1)
+      .filter(n => n > 0)
+      .join(';');
+    rows.push([idx + 1, t.title, t.category || '', t.owner || '', t.status || 'todo', t.startDate, t.endDate, t.days, t.startFormula || '', deps]);
   });
-  const csv = [headers.join(','), ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  downloadBlob(csv, `${proj.name.replace(/[^a-z0-9]/gi, '_')}_schedule.csv`, 'text/csv;charset=utf-8;');
+};
+
+function downloadBlob(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `${proj.name.replace(/[^a-z0-9]/gi, '_')}_schedule.csv`;
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
-window.exportCSV = exportCSV;
 
 function escapeHtml(str) {
   return String(str || '')
@@ -1127,3 +1094,8 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+  loadState();
+  showDashboard();
+});
