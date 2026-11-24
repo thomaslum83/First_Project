@@ -3,1091 +3,882 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Project Kanban & Gantt Tracker (v13)</title>
+<title>Project Tracker: Kanban, Gantt & PERT</title>
 <style>
-  :root {
-    --bg: #f4f6f9;
-    --surface: #ffffff;
-    --border: #dce1e8;
-    --text: #1e293b;
-    --muted: #64748b;
-    --primary: #2563eb;
-    --primary-hover: #1d4ed8;
-    --grey: #6b7280;
-    --blue: #2563eb;
-    --green: #16a34a;
-    --black: #111827;
-    --yellow: #eab308;
-    --red: #dc2626;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; z-index: 20; }
-  .header-left, .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  h1 { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-  button, select, input { font-size: 13px; border-radius: 6px; border: 1px solid var(--border); padding: 6px 11px; background: var(--surface); color: var(--text); }
-  button { cursor: pointer; font-weight: 500; transition: 0.15s; display: inline-flex; align-items: center; gap: 5px; }
-  button:hover { background: #f1f5f9; }
-  button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
-  button.primary:hover { background: var(--primary-hover); }
-  button.danger { color: var(--red); border-color: #fecaca; }
-  button.danger:hover { background: #fef2f2; }
-  .segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-  .segmented button { border: none; border-radius: 0; padding: 6px 12px; background: var(--surface); }
-  .segmented button.active { background: var(--primary); color: #fff; }
-  .segmented button + button { border-left: 1px solid var(--border); }
-
-  /* Dashboard */
-  #dashboardView { flex: 1; padding: 28px; overflow-y: auto; max-width: 1100px; width: 100%; margin: 0 auto; }
-  .dash-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-  .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
-  .project-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; flex-direction: column; justify-content: space-between; gap: 14px; transition: 0.15s; }
-  .project-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(37,99,235,0.08); }
-  .project-card h3 { font-size: 16px; margin-bottom: 4px; }
-  .project-meta { font-size: 12px; color: var(--muted); }
-  .project-actions { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 10px; }
-  .empty-state { text-align: center; padding: 60px 20px; background: var(--surface); border: 1px dashed var(--border); border-radius: 12px; color: var(--muted); }
-
-  /* Workspace */
-  #workspaceView { flex: 1; display: none; flex-direction: column; overflow: hidden; }
-  .sub-bar { background: #f8fafc; border-bottom: 1px solid var(--border); padding: 8px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .legend { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--muted); flex-wrap: wrap; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 3px; }
-
-  /* Kanban */
-  #kanbanView { flex: 1; display: flex; gap: 14px; padding: 16px 20px; overflow-x: auto; overflow-y: hidden; }
-  .k-col { background: #ebeff5; border-radius: 10px; min-width: 280px; width: 280px; display: flex; flex-direction: column; max-height: 100%; border: 1px solid var(--border); }
-  .k-col.warning-col { background: #fffbeb; border-color: #fde68a; }
-  .k-col-head { padding: 11px 14px; font-weight: 700; font-size: 13px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.06); }
-  .k-badge { background: rgba(0,0,0,0.08); padding: 2px 8px; border-radius: 99px; font-size: 11px; }
-  .k-cards { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; }
-  .k-card { background: var(--surface); border-radius: 8px; padding: 11px; border: 1px solid var(--border); border-left: 5px solid var(--blue); box-shadow: 0 1px 2px rgba(0,0,0,0.04); cursor: grab; }
-  .k-card:active { cursor: grabbing; }
-  .k-card-title { font-weight: 600; font-size: 13px; margin-bottom: 5px; line-height: 1.35; }
-  .k-card-meta { font-size: 11px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; justify-content: space-between; }
-  .tag { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
-
-  /* Gantt */
-  #ganttView { flex: 1; display: none; overflow: hidden; position: relative; }
-  .gantt-split { display: flex; width: 100%; height: 100%; overflow: hidden; }
-  .gantt-left { overflow-x: auto; overflow-y: hidden; border-right: 2px solid #cbd5e1; background: var(--surface); flex-shrink: 0; max-width: 62%; }
-  .gantt-right { flex: 1; overflow: auto; position: relative; background: #fafbfc; }
-  .g-table { border-collapse: collapse; table-layout: fixed; }
-  .g-table th, .g-table td { border-bottom: 1px solid var(--border); border-right: 1px solid #eef2f6; height: 44px; padding: 0 6px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .g-table th { background: #f1f5f9; font-weight: 700; text-align: left; position: relative; user-select: none; height: 48px; }
-  .col-resizer { position: absolute; right: 0; top: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 5; }
-  .col-resizer:hover { background: var(--primary); }
-  .g-table td input, .g-table td select { width: 100%; border: 1px solid transparent; background: transparent; padding: 4px; font-size: 12px; border-radius: 4px; }
-  .g-table td input:focus, .g-table td select:focus { border-color: var(--primary); background: #fff; outline: none; }
-  .g-table td input.formula-input { color: #7c3aed; font-weight: 600; }
-  .row-num { text-align: center; color: var(--muted); font-weight: 700; background: #f8fafc; font-size: 11px; }
-
-  .timeline-wrap { position: relative; min-height: 100%; }
-  .t-header { display: flex; height: 48px; background: #f1f5f9; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
-  .t-col-head { border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; }
-  .t-col-head span { font-size: 10px; font-weight: 400; color: var(--muted); }
-  .t-body { position: relative; }
-  .t-grid-bg { position: absolute; inset: 0; display: flex; pointer-events: none; }
-  .t-grid-col { border-right: 1px solid #eef2f6; height: 100%; flex-shrink: 0; }
-  .t-grid-col.weekend { background: rgba(226, 232, 240, 0.35); }
-  .t-row-line { height: 44px; border-bottom: 1px solid #eef2f6; width: 100%; }
-  .today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444; z-index: 6; pointer-events: none; }
-  .today-badge { position: absolute; top: 2px; left: -18px; background: #ef4444; color: #fff; font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: 700; }
-
-  .g-bar { position: absolute; height: 30px; top: 7px; border-radius: 6px; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 6px; font-size: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.14); cursor: grab; user-select: none; z-index: 5; gap: 4px; }
-  .g-bar:active { cursor: grabbing; }
-  .g-bar-date { font-size: 9px; opacity: 0.92; font-weight: 600; flex-shrink: 0; }
-  .g-bar-title { font-weight: 600; font-size: 10px; text-align: center; line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; flex: 1; }
-  .g-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; z-index: 7; }
-  .g-handle.left { left: 0; }
-  .g-handle.right { right: 0; }
-  #depSvg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 4; }
-
-  /* Modal */
-  .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
-  .modal { background: var(--surface); border-radius: 12px; width: 100%; max-width: 480px; padding: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
-  .modal h2 { font-size: 17px; margin-bottom: 14px; }
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .form-group { display: flex; flex-direction: column; gap: 4px; }
-  .form-group.full { grid-column: 1 / -1; }
-  .form-group label { font-size: 11px; font-weight: 600; color: var(--muted); }
-  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-  .hint-box { background: #f5f3ff; border: 1px solid #ddd6fe; color: #5b21b6; font-size: 11px; padding: 8px 10px; border-radius: 6px; margin-top: 4px; line-height: 1.4; }
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+body{background:#f1f5f9;color:#1e293b;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{background:#0f172a;color:#fff;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #1e293b}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+.nav-tabs{display:flex;gap:6px;background:#1e293b;padding:4px;border-radius:8px}
+.tab-btn{background:transparent;color:#94a3b8;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:.15s}
+.tab-btn.active{background:#3b82f6;color:#fff}
+.tab-btn:hover:not(.active){color:#fff}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{background:#334155;color:#fff;border:none;padding:6px 11px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px}
+.btn:hover{background:#475569}
+.btn-primary{background:#2563eb}.btn-primary:hover{background:#1d4ed8}
+.btn-danger{background:#dc2626}.btn-danger:hover{background:#b91c1c}
+.btn-sm{padding:4px 8px;font-size:11px}
+main{flex:1;overflow:auto;position:relative}
+.view{display:none;height:100%}.view.active{display:flex;flex-direction:column}
+/* Dashboard */
+.dash-wrap{max-width:1050px;margin:28px auto;padding:0 20px;width:100%}
+.dash-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+.proj-card{background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;flex-direction:column;justify-content:space-between;gap:14px;cursor:pointer;transition:.15s}
+.proj-card:hover{border-color:#3b82f6;transform:translateY(-2px)}
+.proj-stats{display:flex;gap:10px;font-size:12px;color:#64748b}
+/* Kanban */
+.kanban-board{display:flex;gap:14px;padding:16px;height:100%;overflow-x:auto;align-items:flex-start}
+.k-col{background:#e2e8f0;border-radius:10px;min-width:275px;max-width:275px;max-height:100%;display:flex;flex-direction:column;padding:10px}
+.k-col.warn-col{background:#fef2f2;border:1px solid #fecaca}
+.k-col-head{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:13px;padding:4px 6px 10px;color:#334155}
+.k-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;min-height:60px}
+.k-card{background:#fff;border-radius:8px;padding:10px;box-shadow:0 1px 2px rgba(0,0,0,.08);border-left:5px solid #94a3b8;cursor:grab;font-size:12px}
+.k-card:active{cursor:grabbing}
+.k-card-title{font-weight:700;font-size:13px;margin-bottom:4px;color:#0f172a}
+.k-meta{display:flex;justify-content:space-between;color:#64748b;font-size:11px;margin-top:6px}
+.badge{padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;display:inline-block}
+/* Status & Deadline Colors */
+.c-pending{border-left-color:#64748b}.bg-pending{background:#64748b}
+.c-todo{border-left-color:#2563eb}.bg-todo{background:#2563eb}
+.c-progress{border-left-color:#16a34a}.bg-progress{background:#16a34a}
+.c-done{border-left-color:#0f172a}.bg-done{background:#0f172a}
+.c-warning{border-left-color:#eab308;background:#fefce8}.bg-warning{background:#ca8a04}
+.c-overdue{border-left-color:#dc2626;background:#fef2f2}.bg-overdue{background:#dc2626}
+/* Gantt */
+.gantt-toolbar{background:#fff;padding:8px 16px;border-bottom:1px solid #cbd5e1;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px}
+.gantt-container{flex:1;display:flex;overflow:hidden;position:relative}
+.gantt-left{overflow:auto;border-right:2px solid #94a3b8;background:#fff;flex-shrink:0;max-width:65%}
+.gantt-right{flex:1;overflow:auto;position:relative;background:#f8fafc}
+table.g-table{border-collapse:collapse;table-layout:fixed;font-size:12px}
+.g-table th,.g-table td{border:1px solid #cbd5e1;height:42px;padding:0 6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;position:relative}
+.g-table th{background:#f1f5f9;font-weight:700;color:#334155;position:sticky;top:0;z-index:5;user-select:none}
+.resizer{position:absolute;right:0;top:0;width:5px;height:100%;cursor:col-resize;background:transparent}
+.resizer:hover{background:#3b82f6}
+.g-input{width:100%;border:none;background:transparent;font-size:12px;color:#0f172a;outline:none}
+.g-input:focus{background:#eff6ff}
+.row-ctrl{display:flex;align-items:center;gap:2px;font-size:11px;color:#64748b}
+.drag-grip{cursor:grab;font-weight:bold;padding:0 2px}
+.mv-btn{border:none;background:transparent;cursor:pointer;font-size:9px;padding:1px 2px;color:#475569}
+.mv-btn:hover{color:#2563eb}
+.timeline-head{display:flex;position:sticky;top:0;z-index:4;background:#f1f5f9;border-bottom:1px solid #cbd5e1;height:42px}
+.t-cell{border-right:1px solid #cbd5e1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#475569;flex-shrink:0}
+.t-cell.wknd{background:#e2e8f0}
+.timeline-body{position:relative}
+.t-row{height:42px;border-bottom:1px solid #e2e8f0;position:relative}
+.g-bar{position:absolute;top:5px;height:32px;border-radius:6px;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:space-between;padding:0 5px;cursor:move;user-select:none;box-shadow:0 1px 3px rgba(0,0,0,.2);z-index:2;overflow:hidden}
+.g-bar-title{flex:1;text-align:center;font-weight:600;line-height:1.1;white-space:normal;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;padding:0 3px;font-size:10px}
+.g-bar-date{font-size:9px;opacity:.92;white-space:nowrap;font-weight:700}
+.g-handle{position:absolute;top:0;width:6px;height:100%;cursor:ew-resize}
+.g-handle.left{left:0}.g-handle.right{right:0}
+.today-line{position:absolute;top:0;bottom:0;width:2px;background:#ef4444;z-index:3;pointer-events:none}
+svg.dep-svg{position:absolute;top:0;left:0;pointer-events:none;z-index:1}
+/* PERT */
+.pert-toolbar{background:#fff;padding:8px 16px;border-bottom:1px solid #cbd5e1;display:flex;gap:12px;align-items:center;font-size:12px}
+.pert-canvas{flex:1;position:relative;overflow:auto;background-image:radial-gradient(#cbd5e1 1px,transparent 1px);background-size:20px 20px}
+.pert-stage{position:relative;min-width:1600px;min-height:1000px}
+.p-node{position:absolute;width:205px;background:#fff;border:2px solid #94a3b8;border-radius:8px;padding:8px 10px;box-shadow:0 2px 5px rgba(0,0,0,.08);cursor:grab;z-index:2;font-size:11px}
+.p-node:active{cursor:grabbing}
+.p-node.critical{border-color:#dc2626;background:#fef2f2}
+.p-node-head{display:flex;justify-content:space-between;font-weight:700;font-size:10px;color:#64748b;margin-bottom:4px}
+.p-node.critical .p-node-head{color:#dc2626}
+.p-node-title{font-weight:700;font-size:12px;color:#0f172a;margin-bottom:5px;line-height:1.25}
+.p-node-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:10px;color:#475569;border-top:1px solid #e2e8f0;padding-top:4px}
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.5);display:none;align-items:center;justify-content:center;z-index:50}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:10px;padding:20px;width:420px;max-width:94vw;box-shadow:0 10px 25px rgba(0,0,0,.2)}
+.modal h3{margin-bottom:12px;font-size:16px}
+.f-group{margin-bottom:10px}
+.f-group label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:#334155}
+.f-group input,.f-group select{width:100%;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 </style>
 </head>
 <body>
-
 <header>
-  <div class="header-left">
-    <button id="backBtn" style="display:none;" onclick="showDashboard()">← Projects</button>
-    <h1 id="appTitle">📋 Project Workspace</h1>
+  <div class="brand">
+    <button class="btn" id="btnHome" style="display:none" onclick="goHome()">← Projects</button>
+    <span id="headerTitle">📋 Project Workspace</span>
   </div>
-  <div class="header-right">
-    <button onclick="exportJSON()" title="Download all projects as JSON">⬇ Export JSON</button>
-    <button onclick="document.getElementById('importFile').click()" title="Restore projects from JSON">⬆ Import JSON</button>
-    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
-    <button id="exportCsvBtn" style="display:none;" onclick="exportCSV()">📊 Export CSV</button>
-    <button id="newTaskBtn" class="primary" style="display:none;" onclick="openTaskModal()">+ Add Task</button>
+  <div class="nav-tabs" id="viewTabs" style="display:none">
+    <button class="tab-btn active" data-v="kanban" onclick="switchView('kanban')">Kanban Board</button>
+    <button class="tab-btn" data-v="gantt" onclick="switchView('gantt')">Gantt Chart</button>
+    <button class="tab-btn" data-v="pert" onclick="switchView('pert')">🕸️ PERT Chart</button>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" id="btnNewTask" style="display:none" onclick="openTaskModal()">+ Add Task</button>
+    <button class="btn" onclick="exportJSON()">Export JSON</button>
+    <label class="btn" style="cursor:pointer">Import JSON<input type="file" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+    <button class="btn" id="btnCSV" style="display:none" onclick="exportCSV()">Export CSV</button>
   </div>
 </header>
 
-<!-- DASHBOARD VIEW -->
-<div id="dashboardView">
-  <div class="dash-top">
-    <div>
-      <h2 style="font-size:20px;">Your Projects</h2>
-      <p style="font-size:13px; color:var(--muted);">Create a project or import a JSON backup to get started.</p>
-    </div>
-    <button class="primary" onclick="createProject()">+ New Project</button>
-  </div>
-  <div id="projectGrid" class="project-grid"></div>
-</div>
-
-<!-- WORKSPACE VIEW -->
-<div id="workspaceView">
-  <div class="sub-bar">
-    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-      <div class="segmented">
-        <button id="btnKanban" class="active" onclick="switchView('kanban')">Kanban Board</button>
-        <button id="btnGantt" onclick="switchView('gantt')">Gantt Chart</button>
+<main>
+  <!-- DASHBOARD -->
+  <div id="view-dashboard" class="view active">
+    <div class="dash-wrap">
+      <div class="dash-head">
+        <h2>Your Projects</h2>
+        <button class="btn btn-primary" onclick="createProject()">+ New Project</button>
       </div>
-      <div id="ganttControls" style="display:none; align-items:center; gap:8px;">
-        <div class="segmented">
-          <button id="scaleWeeks" class="active" onclick="setScale('weeks')">Weeks</button>
-          <button id="scaleDays" onclick="setScale('days')">Days</button>
-        </div>
-        <button onclick="adjustZoom(-1)" title="Shrink Timeline">−</button>
-        <button onclick="adjustZoom(1)" title="Expand Timeline">+</button>
-        <span style="font-size:11px; color:#5b21b6; background:#f5f3ff; padding:4px 8px; border-radius:6px; border:1px solid #ddd6fe;">
-          💡 Tip: Type <b>=1+3</b> in Start Date to start 3 days after Row #1 ends (or <b>=1-2</b> for 2 days before)
-        </span>
-      </div>
-    </div>
-    <div class="legend">
-      <span><i class="dot" style="background:var(--grey)"></i>Pending</span>
-      <span><i class="dot" style="background:var(--blue)"></i>To Do</span>
-      <span><i class="dot" style="background:var(--green)"></i>In Progress</span>
-      <span><i class="dot" style="background:var(--black)"></i>Completed</span>
-      <span><i class="dot" style="background:var(--yellow)"></i>Near Deadline (≤7d)</span>
-      <span><i class="dot" style="background:var(--red)"></i>Overdue</span>
+      <div class="proj-grid" id="projGrid"></div>
     </div>
   </div>
 
-  <div id="kanbanView"></div>
+  <!-- KANBAN -->
+  <div id="view-kanban" class="view">
+    <div class="kanban-board" id="kanbanBoard"></div>
+  </div>
 
-  <div id="ganttView">
-    <div class="gantt-split">
-      <div class="gantt-left" id="ganttLeft">
-        <table class="g-table" id="ganttTable"></table>
-      </div>
-      <div class="gantt-right" id="ganttRight">
-        <div class="timeline-wrap" id="timelineWrap">
-          <div class="t-header" id="tHeader"></div>
-          <div class="t-body" id="tBody">
-            <svg id="depSvg"></svg>
-          </div>
-        </div>
-      </div>
+  <!-- GANTT -->
+  <div id="view-gantt" class="view">
+    <div class="gantt-toolbar">
+      <button class="btn btn-sm" onclick="sortByStartDate()">⇅ Sort by Start Date</button>
+      <span>Scale:</span>
+      <button class="btn btn-sm" id="btnScaleWeek" onclick="setScale('week')">Weeks</button>
+      <button class="btn btn-sm" id="btnScaleDay" onclick="setScale('day')">Days</button>
+      <button class="btn btn-sm" onclick="zoomTimeline(-1)">−</button>
+      <button class="btn btn-sm" onclick="zoomTimeline(1)">+</button>
+      <span style="color:#64748b;margin-left:auto">Tip: Type <b>=1+3</b> in Start Date to start 3 days after Row #1 ends.</span>
+    </div>
+    <div class="gantt-container">
+      <div class="gantt-left" id="ganttLeft"></div>
+      <div class="gantt-right" id="ganttRight"></div>
     </div>
   </div>
-</div>
+
+  <!-- PERT -->
+  <div id="view-pert" class="view">
+    <div class="pert-toolbar">
+      <button class="btn btn-sm btn-primary" onclick="resetPertLayout()">Auto Layout</button>
+      <span><b style="color:#dc2626">■ Red Border/Arrow:</b> Critical Path (0 Slack)</span>
+      <span><b style="color:#64748b">■ Grey:</b> Non-Critical Task</span>
+      <span style="color:#64748b;margin-left:auto">Drag any task box freely to rearrange diagram</span>
+    </div>
+    <div class="pert-canvas" id="pertCanvas">
+      <div class="pert-stage" id="pertStage"></div>
+    </div>
+  </div>
+</main>
 
 <!-- TASK MODAL -->
-<div class="modal-backdrop" id="taskModal">
+<div class="modal-bg" id="taskModal">
   <div class="modal">
-    <h2 id="modalTitle">Add Task</h2>
-    <div class="form-grid">
-      <div class="form-group full">
-        <label>Task / Activity Name</label>
-        <input type="text" id="mName" placeholder="e.g., Design Revision">
-      </div>
-      <div class="form-group">
-        <label>Category</label>
-        <input type="text" id="mCategory" placeholder="e.g., Setup at Workshop">
-      </div>
-      <div class="form-group">
-        <label>Owner</label>
-        <input type="text" id="mOwner" placeholder="e.g., Thomas">
-      </div>
-      <div class="form-group">
-        <label>Status</label>
-        <select id="mStatus">
-          <option value="Pending">Pending</option>
-          <option value="To Do">To Do</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Completed">Completed</option>
+    <h3 id="modalTitle">Add Task</h3>
+    <input type="hidden" id="editTaskId">
+    <div class="f-group"><label>Task / Description</label><input id="fTitle" placeholder="e.g., Design Revision"></div>
+    <div class="f-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><label>Category</label><input id="fCat" placeholder="e.g., Kick off"></div>
+      <div><label>Owner</label><input id="fOwner" placeholder="e.g., Thomas"></div>
+    </div>
+    <div class="f-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><label>Status</label>
+        <select id="fStatus">
+          <option value="Pending">Pending (Grey)</option>
+          <option value="To Do">To Do (Blue)</option>
+          <option value="In Progress">In Progress (Green)</option>
+          <option value="Completed">Completed (Black)</option>
         </select>
       </div>
-      <div class="form-group">
-        <label>Depends On (Predecessor Task)</label>
-        <select id="mDep"></select>
-      </div>
-      <div class="form-group">
-        <label>Start Date (D/M/YYYY or Formula)</label>
-        <input type="text" id="mStart" placeholder="e.g., 4/5/2026 or =1+3">
-      </div>
-      <div class="form-group">
-        <label>End Date (D/M/YYYY)</label>
-        <input type="text" id="mEnd" placeholder="e.g., 24/5/2026">
-      </div>
-      <div class="form-group full">
-        <div class="hint-box">
-          <b>Equation Linking:</b> Enter <code>=1+3</code> in Start Date to automatically schedule this task <b>3 days after Row #1's End Date</b> (or <code>=1+0</code> to start right when Row #1 ends). Changing Row #1 will automatically cascade to linked tasks!
-        </div>
-      </div>
+      <div><label>Depends On (Predecessor)</label><select id="fDep"></select></div>
     </div>
-    <div class="modal-actions">
-      <button id="mDeleteBtn" class="danger" style="margin-right:auto; display:none;" onclick="deleteTaskFromModal()">Delete</button>
-      <button onclick="closeTaskModal()">Cancel</button>
-      <button class="primary" onclick="saveTaskModal()">Save Task</button>
+    <div class="f-group" style="display:grid;grid-template-columns:1fr 1fr 80px;gap:8px">
+      <div><label>Start (D/M/YYYY or =1+3)</label><input id="fStart" placeholder="4/5/2026"></div>
+      <div><label>End (D/M/YYYY)</label><input id="fEnd" placeholder="10/5/2026"></div>
+      <div><label>Days</label><input id="fDays" type="number" min="1" value="1"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="btnDelTask" style="margin-right:auto;display:none" onclick="deleteTask()">Delete</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTaskModal()">Save</button>
     </div>
   </div>
 </div>
 
 <script>
-const STORAGE_KEY = 'kanban_gantt_v13_data';
-const COL_WIDTHS_KEY = 'kanban_gantt_v13_cols';
-
-let state = {
-  projects: [],
+const STORAGE_KEY = 'pm_suite_v15';
+let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {
+  projects: [{
+    id: 'p1', name: 'Sample Automation Project',
+    colWidths: [58, 175, 95, 92, 92, 52, 115],
+    tasks: [
+      {id:'t1', title:'Project Kickoff & AFA', category:'Kick off', owner:'Thomas', status:'Completed', start:'4/5/2026', end:'8/5/2026', days:5, depId:'', formula:''},
+      {id:'t2', title:'Design Revision', category:'Kick off', owner:'Rui Yang', status:'In Progress', start:'9/5/2026', end:'22/5/2026', days:14, depId:'t1', formula:'=1+0'},
+      {id:'t3', title:'Parts Purchasing', category:'Procurement', owner:'Thomas', status:'To Do', start:'25/5/2026', end:'12/6/2026', days:19, depId:'t2', formula:'=2+2'},
+      {id:'t4', title:'Module Assembly', category:'Workshop', owner:'Alan', status:'Pending', start:'13/6/2026', end:'26/6/2026', days:14, depId:'t3', formula:'=3+0'}
+    ]
+  }],
   activeProjectId: null,
-  view: 'kanban',
-  scale: 'weeks',
-  zoom: 1,
-  editingTaskId: null
+  scale: 'week',
+  zoom: 1
 };
+let dragTaskId = null, dragRowIdx = null;
 
-let colWidths = { num: 36, name: 190, owner: 85, start: 96, end: 90, days: 52, dep: 115 };
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function getProj() { return state.projects.find(p => p.id === state.activeProjectId); }
 
-function loadState() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) state.projects = JSON.parse(saved);
-    const savedCols = localStorage.getItem(COL_WIDTHS_KEY);
-    if (savedCols) colWidths = { ...colWidths, ...JSON.parse(savedCols) };
-  } catch (e) {}
+// Date Helpers (D/M/YYYY)
+function parseDMY(s) {
+  if (!s) return null;
+  const p = String(s).trim().split('/');
+  if (p.length !== 3) return null;
+  const d = new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0]));
+  return isNaN(d.getTime()) ? null : d;
+}
+function fmtDMY(d) {
+  if (!d) return '';
+  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+}
+function fmtDDMM(d) {
+  if (!d) return '';
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function addDays(d, n) {
+  const r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  r.setDate(r.getDate() + n);
+  return r;
+}
+function diffDays(d1, d2) {
+  return Math.round((new Date(d2.getFullYear(),d2.getMonth(),d2.getDate()) - new Date(d1.getFullYear(),d1.getMonth(),d1.getDate())) / 86400000) + 1;
 }
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.projects));
-}
-
-function saveColWidths() {
-  localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(colWidths));
-}
-
-// Date Utilities (D/M/YYYY)
-function parseDMY(str) {
-  if (!str) return null;
-  const m = String(str).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!m) return null;
-  const d = parseInt(m[1], 10), mo = parseInt(m[2], 10) - 1, y = parseInt(m[3], 10);
-  const dt = new Date(y, mo, d);
-  if (dt.getFullYear() !== y || dt.getMonth() !== mo || dt.getDate() !== d) return null;
-  return dt;
-}
-
-function formatDMY(dt) {
-  if (!dt || isNaN(dt.getTime())) return '';
-  return `${dt.getDate()}/${dt.getMonth() + 1}/${dt.getFullYear()}`;
-}
-
-function formatDDMM(dt) {
-  if (!dt || isNaN(dt.getTime())) return '';
-  const dd = String(dt.getDate()).padStart(2, '0');
-  const mm = String(dt.getMonth() + 1).padStart(2, '0');
-  return `${dd}/${mm}`;
-}
-
-function addDays(dt, days) {
-  const res = new Date(dt.getTime());
-  res.setDate(res.getDate() + days);
-  return res;
-}
-
-function diffDays(start, end) {
-  const ms = 86400000;
-  const s = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-  const e = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-  return Math.max(1, Math.round((e - s) / ms) + 1);
-}
-
-function getActiveProject() {
-  return state.projects.find(p => p.id === state.activeProjectId);
-}
-
-// Resolve formulas like "=1+3" or "=2-1" or "=1"
-// Row numbers (#1, #2...) refer to the current sorted task order
-function resolveFormulas(proj) {
-  if (!proj || !proj.tasks.length) return;
-
-  // First sort tasks using their last known concrete dates so row numbers remain stable during evaluation
-  proj.tasks.sort((a, b) => {
-    const da = parseDMY(a.startDate) || new Date(8640000000000000);
-    const db = parseDMY(b.startDate) || new Date(8640000000000000);
-    if (da.getTime() !== db.getTime()) return da - db;
-    const ea = parseDMY(a.endDate) || da;
-    const eb = parseDMY(b.endDate) || db;
-    return ea - eb;
-  });
-
-  // Multi-pass resolution so chained equations (=1+3, then =2+5) cascade cleanly
+// Formula & Dependency Cascade (=Row+Offset)
+function recalcProject(proj) {
+  if (!proj) return;
   for (let pass = 0; pass < proj.tasks.length; pass++) {
-    let changed = false;
-    proj.tasks.forEach((task, idx) => {
-      if (task.startFormula && task.startFormula.startsWith('=')) {
-        const expr = task.startFormula.slice(1).trim();
-        const m = expr.match(/^(\d+)\s*([+-]\s*\d+)?$/);
+    proj.tasks.forEach((t, idx) => {
+      if (t.formula && t.formula.startsWith('=')) {
+        const m = t.formula.match(/^=(\d+)([+-]\d+)?$/);
         if (m) {
-          const refRow = parseInt(m[1], 10) - 1;
-          const offset = m[2] ? parseInt(m[2].replace(/\s+/g, ''), 10) : 0;
-          if (refRow >= 0 && refRow < proj.tasks.length && refRow !== idx) {
-            const refTask = proj.tasks[refRow];
-            const refEnd = parseDMY(refTask.endDate);
-            if (refEnd) {
-              const curStart = parseDMY(task.startDate);
-              const curEnd = parseDMY(task.endDate);
-              const dur = (curStart && curEnd) ? diffDays(curStart, curEnd) : (task.duration || 1);
-              const newStart = addDays(refEnd, offset);
-              const newEnd = addDays(newStart, dur - 1);
-              const newStartStr = formatDMY(newStart);
-              const newEndStr = formatDMY(newEnd);
-              if (task.startDate !== newStartStr || task.endDate !== newEndStr) {
-                task.startDate = newStartStr;
-                task.endDate = newEndStr;
-                changed = true;
-              }
-              // Auto-link dependency arrow to the referenced row task
-              if (!task.dependsOn) {
-                task.dependsOn = refTask.id;
-              }
+          const refIdx = parseInt(m[1], 10) - 1;
+          const offset = m[2] ? parseInt(m[2], 10) : 0;
+          if (refIdx >= 0 && refIdx < proj.tasks.length && refIdx !== idx) {
+            const pred = proj.tasks[refIdx];
+            t.depId = pred.id;
+            const predEnd = parseDMY(pred.end);
+            if (predEnd) {
+              const newStart = addDays(predEnd, 1 + offset);
+              const dur = Math.max(1, Number(t.days) || 1);
+              t.start = fmtDMY(newStart);
+              t.end = fmtDMY(addDays(newStart, dur - 1));
             }
           }
         }
       }
+      const s = parseDMY(t.start), e = parseDMY(t.end);
+      if (s && e) t.days = Math.max(1, diffDays(s, e));
     });
-    if (!changed) break;
   }
-
-  // Re-sort chronologically after formulas resolve
-  proj.tasks.sort((a, b) => {
-    const da = parseDMY(a.startDate) || new Date(8640000000000000);
-    const db = parseDMY(b.startDate) || new Date(8640000000000000);
-    if (da.getTime() !== db.getTime()) return da - db;
-    const ea = parseDMY(a.endDate) || da;
-    const eb = parseDMY(b.endDate) || db;
-    return ea - eb;
-  });
 }
 
-function getTaskColor(task) {
-  if (task.status === 'Completed') return 'var(--black)';
-  const end = parseDMY(task.endDate);
-  if (end) {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const diff = Math.round((end - today) / 86400000);
-    if (diff < 0) return 'var(--red)';
-    if (diff <= 7) return 'var(--yellow)';
-  }
-  if (task.status === 'Pending') return 'var(--grey)';
-  if (task.status === 'In Progress') return 'var(--green)';
-  return 'var(--blue)';
-}
-
-function getUrgencyStatus(task) {
-  if (task.status === 'Completed') return 'normal';
-  const end = parseDMY(task.endDate);
-  if (!end) return 'normal';
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const diff = Math.round((end - today) / 86400000);
-  if (diff < 0) return 'overdue';
-  if (diff <= 7) return 'warning';
+function getUrgency(t) {
+  if (t.status === 'Completed') return 'done';
+  const e = parseDMY(t.end);
+  if (!e) return 'normal';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const left = Math.round((e - today) / 86400000);
+  if (left < 0) return 'overdue';
+  if (left <= 7) return 'warning';
   return 'normal';
 }
 
-// Navigation & Dashboard
-function showDashboard() {
-  state.activeProjectId = null;
-  document.getElementById('dashboardView').style.display = 'block';
-  document.getElementById('workspaceView').style.display = 'none';
-  document.getElementById('backBtn').style.display = 'none';
-  document.getElementById('newTaskBtn').style.display = 'none';
-  document.getElementById('exportCsvBtn').style.display = 'none';
-  document.getElementById('appTitle').textContent = '📋 Project Workspace';
+function getStatusClass(t) {
+  const u = getUrgency(t);
+  if (u === 'overdue') return 'overdue';
+  if (u === 'warning') return 'warning';
+  if (t.status === 'Completed') return 'done';
+  if (t.status === 'In Progress') return 'progress';
+  if (t.status === 'To Do') return 'todo';
+  return 'pending';
+}
+
+// Navigation
+function goHome() {
+  state.activeProjectId = null; save();
+  document.getElementById('btnHome').style.display = 'none';
+  document.getElementById('viewTabs').style.display = 'none';
+  document.getElementById('btnNewTask').style.display = 'none';
+  document.getElementById('btnCSV').style.display = 'none';
+  document.getElementById('headerTitle').textContent = '📋 Project Workspace';
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-dashboard').classList.add('active');
   renderDashboard();
 }
 
 function openProject(id) {
-  state.activeProjectId = id;
-  const proj = getActiveProject();
-  if (!proj) return;
-  resolveFormulas(proj);
-  saveState();
-  document.getElementById('dashboardView').style.display = 'none';
-  document.getElementById('workspaceView').style.display = 'flex';
-  document.getElementById('backBtn').style.display = 'inline-flex';
-  document.getElementById('newTaskBtn').style.display = 'inline-flex';
-  document.getElementById('exportCsvBtn').style.display = 'inline-flex';
-  document.getElementById('appTitle').textContent = proj.name;
-  switchView(state.view);
+  state.activeProjectId = id; save();
+  const p = getProj();
+  recalcProject(p);
+  document.getElementById('btnHome').style.display = 'inline-flex';
+  document.getElementById('viewTabs').style.display = 'flex';
+  document.getElementById('btnNewTask').style.display = 'inline-flex';
+  document.getElementById('btnCSV').style.display = 'inline-flex';
+  document.getElementById('headerTitle').textContent = p.name;
+  switchView('kanban');
+}
+
+function switchView(v) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  if (v === 'kanban') renderKanban();
+  if (v === 'gantt') renderGantt();
+  if (v === 'pert') renderPert();
+}
+
+// Dashboard
+function renderDashboard() {
+  const grid = document.getElementById('projGrid');
+  grid.innerHTML = '';
+  state.projects.forEach(p => {
+    const done = p.tasks.filter(t => t.status === 'Completed').length;
+    const card = document.createElement('div');
+    card.className = 'proj-card';
+    card.innerHTML = `
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:start">
+          <h3 style="font-size:16px;color:#0f172a">${p.name}</h3>
+          <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteProject('${p.id}')">✕</button>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-top:6px">${p.tasks.length} Tasks • ${done} Completed</p>
+      </div>
+      <div class="proj-stats"><span>Open Board, Gantt & PERT →</span></div>`;
+    card.onclick = () => openProject(p.id);
+    grid.appendChild(card);
+  });
 }
 
 function createProject() {
   const name = prompt('Enter new project name:');
   if (!name || !name.trim()) return;
-  const today = new Date();
-  const nextWeek = addDays(today, 6);
-  const proj = {
-    id: 'proj_' + Date.now(),
-    name: name.trim(),
-    tasks: [
-      {
-        id: 't_' + Date.now(),
-        name: 'Project Kickoff',
-        category: 'Planning',
-        owner: 'Lead',
-        status: 'To Do',
-        startDate: formatDMY(today),
-        endDate: formatDMY(nextWeek),
-        startFormula: '',
-        dependsOn: ''
-      }
-    ]
-  };
-  state.projects.push(proj);
-  saveState();
-  openProject(proj.id);
+  const id = 'p_' + Date.now();
+  state.projects.push({id, name: name.trim(), colWidths:[58,175,95,92,92,52,115], tasks:[]});
+  save(); openProject(id);
 }
 
-function deleteProject(e, id) {
-  e.stopPropagation();
+function deleteProject(id) {
   if (!confirm('Delete this project?')) return;
   state.projects = state.projects.filter(p => p.id !== id);
-  saveState();
-  renderDashboard();
+  save(); renderDashboard();
 }
 
-function renderDashboard() {
-  const grid = document.getElementById('projectGrid');
-  if (!state.projects.length) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
-      <h3 style="margin-bottom:8px; color:var(--text);">No Projects Yet</h3>
-      <p style="margin-bottom:16px;">Click <b>+ New Project</b> to start tracking, or use <b>Import JSON</b> above to load an existing schedule.</p>
-      <button class="primary" onclick="createProject()">+ Create Your First Project</button>
-    </div>`;
-    return;
-  }
-  grid.innerHTML = state.projects.map(p => {
-    const done = p.tasks.filter(t => t.status === 'Completed').length;
-    return `<div class="project-card" onclick="openProject('${p.id}')" style="cursor:pointer;">
-      <div>
-        <h3>${escapeHtml(p.name)}</h3>
-        <div class="project-meta">${p.tasks.length} tasks • ${done} completed</div>
-      </div>
-      <div class="project-actions">
-        <span style="font-size:12px; color:var(--primary); font-weight:600;">Open Board →</span>
-        <button class="danger" onclick="deleteProject(event, '${p.id}')">Delete</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function switchView(view) {
-  state.view = view;
-  document.getElementById('btnKanban').classList.toggle('active', view === 'kanban');
-  document.getElementById('btnGantt').classList.toggle('active', view === 'gantt');
-  document.getElementById('kanbanView').style.display = view === 'kanban' ? 'flex' : 'none';
-  document.getElementById('ganttView').style.display = view === 'gantt' ? 'block' : 'none';
-  document.getElementById('ganttControls').style.display = view === 'gantt' ? 'flex' : 'none';
-  if (view === 'kanban') renderKanban();
-  else renderGantt();
-}
-
-// KANBAN BOARD
+// Kanban
 function renderKanban() {
-  const proj = getActiveProject();
-  if (!proj) return;
-  resolveFormulas(proj);
-
-  const container = document.getElementById('kanbanView');
-  const warningTasks = proj.tasks.filter(t => getUrgencyStatus(t) !== 'normal');
-  const columns = [
-    { key: 'WARNING', title: '⚠️ Past Deadline / Warning', tasks: warningTasks, isWarning: true },
-    { key: 'Pending', title: 'Pending', tasks: proj.tasks.filter(t => t.status === 'Pending') },
-    { key: 'To Do', title: 'To Do', tasks: proj.tasks.filter(t => t.status === 'To Do') },
-    { key: 'In Progress', title: 'In Progress', tasks: proj.tasks.filter(t => t.status === 'In Progress') },
-    { key: 'Completed', title: 'Completed', tasks: proj.tasks.filter(t => t.status === 'Completed') }
+  const p = getProj(); if (!p) return;
+  recalcProject(p);
+  const board = document.getElementById('kanbanBoard');
+  board.innerHTML = '';
+  const alertTasks = p.tasks.filter(t => { const u = getUrgency(t); return u === 'overdue' || u === 'warning'; });
+  const cols = [
+    {key:'ALERT', label:'⚠️ Past Deadline / Warning', tasks: alertTasks, warn:true},
+    {key:'Pending', label:'Pending', tasks: p.tasks.filter(t => t.status === 'Pending')},
+    {key:'To Do', label:'To Do', tasks: p.tasks.filter(t => t.status === 'To Do')},
+    {key:'In Progress', label:'In Progress', tasks: p.tasks.filter(t => t.status === 'In Progress')},
+    {key:'Completed', label:'Done', tasks: p.tasks.filter(t => t.status === 'Completed')}
   ];
-
-  container.innerHTML = columns.map(col => `
-    <div class="k-col ${col.isWarning ? 'warning-col' : ''}"
-         ondragover="event.preventDefault()"
-         ondrop="onKanbanDrop(event, '${col.key}')">
-      <div class="k-col-head">
-        <span>${col.title}</span>
-        <span class="k-badge">${col.tasks.length}</span>
-      </div>
-      <div class="k-cards">
-        ${col.tasks.map(t => {
-          const rowIndex = proj.tasks.indexOf(t) + 1;
-          const color = getTaskColor(t);
-          const urg = getUrgencyStatus(t);
-          return `<div class="k-card" draggable="true"
-                       ondragstart="event.dataTransfer.setData('text/plain', '${t.id}')"
-                       onclick="openTaskModal('${t.id}')"
-                       style="border-left-color:${color};">
-            <div class="k-card-title"><span style="color:var(--muted);">#${rowIndex}</span> ${escapeHtml(t.name)}</div>
-            <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:6px;">
-              ${t.category ? `<span class="tag">${escapeHtml(t.category)}</span>` : ''}
-              ${col.isWarning ? `<span class="tag" style="background:${urg==='overdue'?'#fee2e2':'#fef3c7'}; color:${urg==='overdue'?'#991b1b':'#92400e'};">${urg==='overdue'?'OVERDUE':'DUE SOON'} (${t.status})</span>` : ''}
-              ${t.startFormula ? `<span class="tag" style="background:#f5f3ff; color:#6d28d9;">ƒ ${escapeHtml(t.startFormula)}</span>` : ''}
-            </div>
-            <div class="k-card-meta">
-              <span>👤 ${escapeHtml(t.owner || 'Unassigned')}</span>
-              <span>📅 ${t.startDate} → ${t.endDate}</span>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
-  `).join('');
+  cols.forEach(c => {
+    const col = document.createElement('div');
+    col.className = 'k-col' + (c.warn ? ' warn-col' : '');
+    col.innerHTML = `<div class="k-col-head"><span>${c.label}</span><span>${c.tasks.length}</span></div>`;
+    const list = document.createElement('div');
+    list.className = 'k-list';
+    if (!c.warn) {
+      list.ondragover = e => e.preventDefault();
+      list.ondrop = e => {
+        e.preventDefault();
+        const t = p.tasks.find(x => x.id === dragTaskId);
+        if (t) { t.status = c.key; save(); renderKanban(); }
+      };
+    }
+    c.tasks.forEach(t => {
+      const sc = getStatusClass(t);
+      const card = document.createElement('div');
+      card.className = `k-card c-${sc}`;
+      card.draggable = true;
+      card.ondragstart = () => dragTaskId = t.id;
+      card.onclick = () => openTaskModal(t.id);
+      card.innerHTML = `
+        <div class="k-card-title">${t.title}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <span class="badge bg-${sc}">${t.status}</span>
+          ${t.category ? `<span style="font-size:10px;background:#e2e8f0;padding:2px 5px;border-radius:4px">${t.category}</span>` : ''}
+        </div>
+        <div class="k-meta"><span>👤 ${t.owner || 'Unassigned'}</span><span>${t.start} → ${t.end}</span></div>`;
+      list.appendChild(card);
+    });
+    col.appendChild(list);
+    board.appendChild(col);
+  });
 }
 
-function onKanbanDrop(e, targetKey) {
-  e.preventDefault();
-  if (targetKey === 'WARNING') return;
-  const taskId = e.dataTransfer.getData('text/plain');
-  const proj = getActiveProject();
-  const task = proj && proj.tasks.find(t => t.id === taskId);
-  if (task) {
-    task.status = targetKey;
-    saveState();
-    renderKanban();
-  }
+// Gantt
+function setScale(s) { state.scale = s; save(); renderGantt(); }
+function zoomTimeline(dir) { state.zoom = Math.max(0.5, Math.min(2.5, +(state.zoom + dir * 0.25).toFixed(2))); save(); renderGantt(); }
+function sortByStartDate() {
+  const p = getProj(); if (!p) return;
+  const oldOrder = p.tasks.map(t => t.id);
+  p.tasks.sort((a,b) => (parseDMY(a.start)||0) - (parseDMY(b.start)||0));
+  rewriteFormulasAfterReorder(p, oldOrder);
+  recalcProject(p); save(); renderGantt();
 }
 
-// GANTT CHART
-function setScale(scale) {
-  state.scale = scale;
-  document.getElementById('scaleWeeks').classList.toggle('active', scale === 'weeks');
-  document.getElementById('scaleDays').classList.toggle('active', scale === 'days');
-  renderGantt();
+function rewriteFormulasAfterReorder(proj, oldIds) {
+  proj.tasks.forEach(t => {
+    if (t.formula && t.formula.startsWith('=')) {
+      const m = t.formula.match(/^=(\d+)([+-]\d+)?$/);
+      if (m) {
+        const oldIdx = parseInt(m[1], 10) - 1;
+        const targetId = oldIds[oldIdx];
+        const newIdx = proj.tasks.findIndex(x => x.id === targetId);
+        if (newIdx !== -1) t.formula = `=${newIdx + 1}${m[2] || ''}`;
+      }
+    }
+  });
 }
 
-function adjustZoom(delta) {
-  state.zoom = Math.max(0.5, Math.min(2.5, +(state.zoom + delta * 0.25).toFixed(2)));
-  renderGantt();
-}
-
-function getISOWeek(dt) {
-  const d = new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+function moveRow(idx, dir) {
+  const p = getProj();
+  const target = idx + dir;
+  if (target < 0 || target >= p.tasks.length) return;
+  const oldIds = p.tasks.map(t => t.id);
+  const [item] = p.tasks.splice(idx, 1);
+  p.tasks.splice(target, 0, item);
+  rewriteFormulasAfterReorder(p, oldIds);
+  recalcProject(p); save(); renderGantt();
 }
 
 function renderGantt() {
-  const proj = getActiveProject();
-  if (!proj) return;
-  resolveFormulas(proj);
-  saveState();
+  const p = getProj(); if (!p) return;
+  recalcProject(p);
+  document.getElementById('btnScaleWeek').classList.toggle('btn-primary', state.scale === 'week');
+  document.getElementById('btnScaleDay').classList.toggle('btn-primary', state.scale === 'day');
 
-  renderGanttTable(proj);
-  renderGanttTimeline(proj);
-}
+  const widths = p.colWidths || [58,175,95,92,92,52,115];
+  const headers = ['#','Task / Description','Owner','Start','End','Days','Depends On'];
+  const left = document.getElementById('ganttLeft');
+  let tbl = `<table class="g-table"><colgroup>${widths.map(w=>`<col style="width:${w}px">`).join('')}</colgroup><thead><tr>`;
+  headers.forEach((h, i) => {
+    tbl += `<th>${h}<div class="resizer" onmousedown="startColResize(event,${i})"></div></th>`;
+  });
+  tbl += `</tr></thead><tbody>`;
 
-function renderGanttTable(proj) {
-  const table = document.getElementById('ganttTable');
-  const cols = [
-    { key: 'num', label: '#' },
-    { key: 'name', label: 'Task / Description' },
-    { key: 'owner', label: 'Owner' },
-    { key: 'start', label: 'Start (or =Row+Days)' },
-    { key: 'end', label: 'End' },
-    { key: 'days', label: 'Days' },
-    { key: 'dep', label: 'Depends On' }
-  ];
-
-  let html = `<thead><tr>` + cols.map(c => `
-    <th style="width:${colWidths[c.key]}px;">
-      ${c.label}
-      <div class="col-resizer" onmousedown="startColResize(event, '${c.key}')"></div>
-    </th>
-  `).join('') + `</tr></thead><tbody>`;
-
-  proj.tasks.forEach((t, idx) => {
-    const s = parseDMY(t.startDate);
-    const e = parseDMY(t.endDate);
-    const days = (s && e) ? diffDays(s, e) : 1;
-    const isFormula = Boolean(t.startFormula && t.startFormula.startsWith('='));
-    const depOptions = `<option value="">None</option>` + proj.tasks
-      .filter(other => other.id !== t.id)
-      .map(other => {
-        const rNum = proj.tasks.indexOf(other) + 1;
-        return `<option value="${other.id}" ${t.dependsOn === other.id ? 'selected' : ''}>#${rNum} ${escapeHtml(other.name)}</option>`;
-      }).join('');
-
-    html += `<tr>
-      <td class="row-num">${idx + 1}</td>
-      <td><input type="text" value="${escapeHtml(t.name)}" onchange="updateTaskField('${t.id}', 'name', this.value)"></td>
-      <td><input type="text" value="${escapeHtml(t.owner || '')}" onchange="updateTaskField('${t.id}', 'owner', this.value)"></td>
-      <td>
-        <input type="text"
-               class="${isFormula ? 'formula-input' : ''}"
-               value="${escapeHtml(isFormula ? t.startFormula : t.startDate)}"
-               title="${isFormula ? 'Resolved Start Date: ' + t.startDate : 'Enter D/M/YYYY or formula like =1+3'}"
-               onfocus="if('${isFormula}'==='true') this.value='${escapeHtml(t.startFormula)}'"
-               onblur="if(this.value.startsWith('=')) this.value='${escapeHtml(t.startFormula)}'"
-               onchange="updateStartInput('${t.id}', this.value)">
-      </td>
-      <td><input type="text" value="${escapeHtml(t.endDate)}" onchange="updateEndInput('${t.id}', this.value)"></td>
-      <td><input type="number" min="1" value="${days}" onchange="updateDurationInput('${t.id}', this.value)"></td>
-      <td><select onchange="updateTaskField('${t.id}', 'dependsOn', this.value)">${depOptions}</select></td>
+  p.tasks.forEach((t, idx) => {
+    const startVal = t.formula ? t.formula : t.start;
+    let depOpts = `<option value="">None</option>`;
+    p.tasks.forEach((cand, cIdx) => {
+      if (cand.id !== t.id) depOpts += `<option value="${cand.id}" ${t.depId===cand.id?'selected':''}>#${cIdx+1} ${cand.title}</option>`;
+    });
+    tbl += `<tr draggable="true" ondragstart="dragRowIdx=${idx}" ondragover="event.preventDefault()" ondrop="dropRow(${idx})">
+      <td><div class="row-ctrl"><span class="drag-grip">⋮⋮</span><b>${idx+1}</b>
+        <button class="mv-btn" onclick="moveRow(${idx},-1)">▲</button><button class="mv-btn" onclick="moveRow(${idx},1)">▼</button>
+      </div></td>
+      <td><input class="g-input" value="${t.title.replace(/"/g,'&quot;')}" onchange="updateCell(${idx},'title',this.value)"></td>
+      <td><input class="g-input" value="${(t.owner||'').replace(/"/g,'&quot;')}" onchange="updateCell(${idx},'owner',this.value)"></td>
+      <td><input class="g-input" value="${startVal}" title="Date: ${t.start}" onchange="updateCell(${idx},'start',this.value)"></td>
+      <td><input class="g-input" value="${t.end}" onchange="updateCell(${idx},'end',this.value)"></td>
+      <td><input class="g-input" type="number" min="1" value="${t.days}" onchange="updateCell(${idx},'days',this.value)"></td>
+      <td><select class="g-input" onchange="updateCell(${idx},'depId',this.value)">${depOpts}</select></td>
     </tr>`;
   });
+  tbl += `</tbody></table>`;
+  left.innerHTML = tbl;
 
-  html += `</tbody>`;
-  table.innerHTML = html;
-}
+  // Timeline
+  const right = document.getElementById('ganttRight');
+  let dates = [];
+  p.tasks.forEach(t => { const s=parseDMY(t.start), e=parseDMY(t.end); if(s) dates.push(s); if(e) dates.push(e); });
+  if (!dates.length) dates = [new Date(), addDays(new Date(), 30)];
+  let minD = new Date(Math.min(...dates)); minD = addDays(minD, -5);
+  let maxD = new Date(Math.max(...dates)); maxD = addDays(maxD, 14);
+  const totalDays = Math.max(21, diffDays(minD, maxD));
+  const pxPerDay = (state.scale === 'week' ? 14 : 34) * state.zoom;
+  const totalW = totalDays * pxPerDay;
 
-function updateTaskField(id, field, val) {
-  const proj = getActiveProject();
-  const t = proj && proj.tasks.find(x => x.id === id);
-  if (!t) return;
-  t[field] = val;
-  renderGantt();
-}
-
-function updateStartInput(id, val) {
-  const proj = getActiveProject();
-  const t = proj && proj.tasks.find(x => x.id === id);
-  if (!t) return;
-  const trimmed = val.trim();
-  if (trimmed.startsWith('=')) {
-    const m = trimmed.slice(1).trim().match(/^(\d+)\s*([+-]\s*\d+)?$/);
-    if (!m) {
-      alert('Invalid equation. Use format like =1+3 (3 days after Row #1 end) or =2-1.');
-      renderGantt();
-      return;
-    }
-    t.startFormula = trimmed;
-    const refIdx = parseInt(m[1], 10) - 1;
-    if (proj.tasks[refIdx] && proj.tasks[refIdx].id !== t.id) {
-      t.dependsOn = proj.tasks[refIdx].id;
+  let headHTML = `<div class="timeline-head" style="width:${totalW}px">`;
+  if (state.scale === 'day') {
+    for (let i = 0; i < totalDays; i++) {
+      const d = addDays(minD, i);
+      const wknd = d.getDay() === 0 || d.getDay() === 6;
+      headHTML += `<div class="t-cell ${wknd?'wknd':''}" style="width:${pxPerDay}px">${d.getDate()}/${d.getMonth()+1}</div>`;
     }
   } else {
-    const dt = parseDMY(trimmed);
-    if (!dt) {
-      alert('Please use D/M/YYYY format (e.g., 4/5/2026) or a formula like =1+3.');
-      renderGantt();
-      return;
-    }
-    const oldS = parseDMY(t.startDate);
-    const oldE = parseDMY(t.endDate);
-    const dur = (oldS && oldE) ? diffDays(oldS, oldE) : 1;
-    t.startFormula = '';
-    t.startDate = formatDMY(dt);
-    t.endDate = formatDMY(addDays(dt, dur - 1));
-  }
-  renderGantt();
-}
-
-function updateEndInput(id, val) {
-  const proj = getActiveProject();
-  const t = proj && proj.tasks.find(x => x.id === id);
-  if (!t) return;
-  const dt = parseDMY(val);
-  const s = parseDMY(t.startDate);
-  if (!dt || (s && dt < s)) {
-    alert('End date must be valid D/M/YYYY and on or after Start date.');
-    renderGantt();
-    return;
-  }
-  t.endDate = formatDMY(dt);
-  renderGantt();
-}
-
-function updateDurationInput(id, val) {
-  const proj = getActiveProject();
-  const t = proj && proj.tasks.find(x => x.id === id);
-  if (!t) return;
-  const days = Math.max(1, parseInt(val, 10) || 1);
-  const s = parseDMY(t.startDate);
-  if (s) {
-    t.endDate = formatDMY(addDays(s, days - 1));
-  }
-  renderGantt();
-}
-
-// Column Resizing
-function startColResize(e, key) {
-  e.preventDefault();
-  const startX = e.clientX;
-  const startW = colWidths[key];
-  function onMove(ev) {
-    colWidths[key] = Math.max(40, startW + (ev.clientX - startX));
-    renderGanttTable(getActiveProject());
-  }
-  function onUp() {
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-    saveColWidths();
-  }
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
-}
-
-// Timeline Rendering
-function renderGanttTimeline(proj) {
-  const header = document.getElementById('tHeader');
-  const body = document.getElementById('tBody');
-  const wrap = document.getElementById('timelineWrap');
-
-  let minDate = new Date();
-  let maxDate = addDays(minDate, 30);
-  const validDates = [];
-  proj.tasks.forEach(t => {
-    const s = parseDMY(t.startDate), e = parseDMY(t.endDate);
-    if (s) validDates.push(s);
-    if (e) validDates.push(e);
-  });
-  if (validDates.length) {
-    minDate = new Date(Math.min(...validDates));
-    maxDate = new Date(Math.max(...validDates));
-  }
-
-  // Align minDate to Monday
-  const startTimeline = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
-  const dayOfWeek = (startTimeline.getDay() + 6) % 7;
-  startTimeline.setDate(startTimeline.getDate() - dayOfWeek - 7);
-  const endTimeline = addDays(maxDate, 14);
-
-  const pxPerDay = (state.scale === 'weeks' ? 14 : 42) * state.zoom;
-  const totalDays = Math.ceil((endTimeline - startTimeline) / 86400000) + 1;
-  const totalWidth = totalDays * pxPerDay;
-  const totalHeight = Math.max(proj.tasks.length * 44, 300);
-
-  wrap.style.width = totalWidth + 'px';
-  body.style.height = totalHeight + 'px';
-
-  // Build Header & Grid Columns
-  let headHtml = '';
-  let gridHtml = '';
-  if (state.scale === 'weeks') {
-    for (let d = 0; d < totalDays; d += 7) {
-      const colDate = addDays(startTimeline, d);
-      const wWidth = Math.min(7, totalDays - d) * pxPerDay;
-      headHtml += `<div class="t-col-head" style="width:${wWidth}px;">W${getISOWeek(colDate)}<span>${colDate.getDate()}/${colDate.getMonth()+1}</span></div>`;
-      gridHtml += `<div class="t-grid-col" style="width:${wWidth}px;"></div>`;
-    }
-  } else {
-    const dayNames = ['Su','Mo','Tu','We','Th','Fr','Sa'];
-    for (let d = 0; d < totalDays; d++) {
-      const colDate = addDays(startTimeline, d);
-      const isWknd = colDate.getDay() === 0 || colDate.getDay() === 6;
-      headHtml += `<div class="t-col-head" style="width:${pxPerDay}px;">${colDate.getDate()}/${colDate.getMonth()+1}<span>${dayNames[colDate.getDay()]}</span></div>`;
-      gridHtml += `<div class="t-grid-col ${isWknd ? 'weekend' : ''}" style="width:${pxPerDay}px;"></div>`;
+    let cur = new Date(minD);
+    while (cur <= maxD) {
+      const span = Math.min(7, diffDays(cur, maxD));
+      const wk = getISOWeek(cur);
+      headHTML += `<div class="t-cell" style="width:${span*pxPerDay}px">W${wk}<span style="font-weight:400;font-size:9px">${cur.getDate()}/${cur.getMonth()+1}</span></div>`;
+      cur = addDays(cur, span);
     }
   }
-  header.innerHTML = headHtml;
+  headHTML += `</div>`;
 
-  let rowsHtml = '';
-  for (let i = 0; i < proj.tasks.length; i++) rowsHtml += `<div class="t-row-line"></div>`;
+  const rowH = 42;
+  const bodyH = Math.max(200, p.tasks.length * rowH);
+  let bodyHTML = `<div class="timeline-body" style="width:${totalW}px;height:${bodyH}px">`;
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (today >= minD && today <= maxD) {
+    const tx = (diffDays(minD, today) - 1) * pxPerDay;
+    bodyHTML += `<div class="today-line" style="left:${tx}px"></div>`;
+  }
 
-  // Today line
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const todayOffset = Math.round((today - startTimeline) / 86400000) * pxPerDay;
-  const todayHtml = (todayOffset >= 0 && todayOffset <= totalWidth)
-    ? `<div class="today-line" style="left:${todayOffset}px;"><div class="today-badge">Today</div></div>` : '';
-
-  // Task Bars
   const barCoords = {};
-  let barsHtml = '';
-  proj.tasks.forEach((t, idx) => {
-    const s = parseDMY(t.startDate);
-    const e = parseDMY(t.endDate);
+  p.tasks.forEach((t, idx) => {
+    bodyHTML += `<div class="t-row"></div>`;
+    const s = parseDMY(t.start), e = parseDMY(t.end);
     if (!s || !e) return;
-    const startIdx = Math.round((s - startTimeline) / 86400000);
-    const dur = diffDays(s, e);
-    const left = startIdx * pxPerDay;
-    const width = Math.max(pxPerDay, dur * pxPerDay);
-    const top = idx * 44 + 7;
-    const color = getTaskColor(t);
-
-    barCoords[t.id] = { left, right: left + width, centerY: idx * 44 + 22 };
-
-    barsHtml += `<div class="g-bar" id="bar_${t.id}"
-                      style="left:${left}px; width:${width}px; top:${top}px; background:${color};"
-                      onmousedown="startBarDrag(event, '${t.id}', 'move', ${pxPerDay})">
-      <div class="g-handle left" onmousedown="startBarDrag(event, '${t.id}', 'left', ${pxPerDay})"></div>
-      <span class="g-bar-date">${formatDDMM(s)}</span>
-      <span class="g-bar-title">${escapeHtml(t.name)}</span>
-      <span class="g-bar-date">${formatDDMM(e)}</span>
-      <div class="g-handle right" onmousedown="startBarDrag(event, '${t.id}', 'right', ${pxPerDay})"></div>
+    const x = (diffDays(minD, s) - 1) * pxPerDay;
+    const w = Math.max(28, diffDays(s, e) * pxPerDay);
+    const y = idx * rowH;
+    barCoords[t.id] = {x, y, w};
+    const sc = getStatusClass(t);
+    bodyHTML += `<div class="g-bar bg-${sc}" style="left:${x}px;top:${y+5}px;width:${w}px" onmousedown="startBarDrag(event,'${t.id}','move',${pxPerDay})">
+      <div class="g-handle left" onmousedown="startBarDrag(event,'${t.id}','left',${pxPerDay})"></div>
+      <span class="g-bar-date">${fmtDDMM(s)}</span>
+      <span class="g-bar-title">${t.title}</span>
+      <span class="g-bar-date">${fmtDDMM(e)}</span>
+      <div class="g-handle right" onmousedown="startBarDrag(event,'${t.id}','right',${pxPerDay})"></div>
     </div>`;
   });
 
-  // Dependency Arrows (Thin Dashed)
-  let svgHtml = `<svg id="depSvg" width="${totalWidth}" height="${totalHeight}">
-    <defs>
-      <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#dc2626"/>
-      </marker>
-    </defs>`;
-
-  proj.tasks.forEach(t => {
-    if (t.dependsOn && barCoords[t.dependsOn] && barCoords[t.id]) {
-      const from = barCoords[t.dependsOn];
-      const to = barCoords[t.id];
-      const x1 = from.right;
-      const y1 = from.centerY;
-      const x2 = to.left;
-      const y2 = to.centerY;
-      const midX = x1 + 12;
-      let pathD = '';
-      if (x2 >= x1 + 14) {
-        pathD = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
-      } else {
-        const dropY = y1 + (y2 >= y1 ? 20 : -20);
-        const backX = x2 - 12;
-        pathD = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${dropY} L ${backX} ${dropY} L ${backX} ${y2} L ${x2} ${y2}`;
-      }
-      svgHtml += `<path d="${pathD}" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-dasharray="4,3" marker-end="url(#arrow)"/>`;
+  // Dependency dashed arrows
+  let svg = `<svg class="dep-svg" width="${totalW}" height="${bodyH}"><defs><marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#dc2626"/></marker></defs>`;
+  p.tasks.forEach(t => {
+    if (t.depId && barCoords[t.depId] && barCoords[t.id]) {
+      const from = barCoords[t.depId], to = barCoords[t.id];
+      const x1 = from.x + from.w, y1 = from.y + 21;
+      const x2 = to.x, y2 = to.y + 21;
+      const midX = x1 + 10;
+      const path = x2 >= x1 + 12
+        ? `M${x1},${y1} L${midX},${y1} L${midX},${y2} L${x2},${y2}`
+        : `M${x1},${y1} L${x1+8},${y1} L${x1+8},${y1+(y2>y1?20:-20)} L${x2-8},${y1+(y2>y1?20:-20)} L${x2-8},${y2} L${x2},${y2}`;
+      svg += `<path d="${path}" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-dasharray="4,3" marker-end="url(#arr)"/>`;
     }
   });
-  svgHtml += `</svg>`;
-
-  body.innerHTML = `<div class="t-grid-bg">${gridHtml}</div>${rowsHtml}${todayHtml}${svgHtml}${barsHtml}`;
+  svg += `</svg>`;
+  right.innerHTML = headHTML + bodyHTML + svg + `</div>`;
+  left.onscroll = () => right.scrollTop = left.scrollTop;
+  right.onscroll = () => left.scrollTop = right.scrollTop;
 }
 
-// Drag & Resize Bars
-function startBarDrag(e, taskId, mode, pxPerDay) {
-  e.stopPropagation();
-  const proj = getActiveProject();
-  const t = proj && proj.tasks.find(x => x.id === taskId);
-  if (!t) return;
-  const origS = parseDMY(t.startDate);
-  const origE = parseDMY(t.endDate);
-  if (!origS || !origE) return;
+function getISOWeek(d) {
+  const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  dt.setUTCDate(dt.getUTCDate() + 4 - (dt.getUTCDay()||7));
+  const yrStart = new Date(Date.UTC(dt.getUTCFullYear(),0,1));
+  return Math.ceil((((dt - yrStart) / 86400000) + 1)/7);
+}
 
-  const startX = e.clientX;
-  let moved = false;
+function dropRow(targetIdx) {
+  if (dragRowIdx === null || dragRowIdx === targetIdx) return;
+  const p = getProj();
+  const oldIds = p.tasks.map(t => t.id);
+  const [moved] = p.tasks.splice(dragRowIdx, 1);
+  p.tasks.splice(targetIdx, 0, moved);
+  dragRowIdx = null;
+  rewriteFormulasAfterReorder(p, oldIds);
+  recalcProject(p); save(); renderGantt();
+}
 
-  function onMove(ev) {
-    const deltaDays = Math.round((ev.clientX - startX) / pxPerDay);
-    if (deltaDays === 0) return;
-    moved = true;
-    if (mode === 'move') {
-      t.startFormula = ''; // Clear formula if user manually drags bar to a fixed date
-      t.startDate = formatDMY(addDays(origS, deltaDays));
-      t.endDate = formatDMY(addDays(origE, deltaDays));
-    } else if (mode === 'left') {
-      const newS = addDays(origS, deltaDays);
-      if (newS <= origE) {
-        t.startFormula = '';
-        t.startDate = formatDMY(newS);
-      }
-    } else if (mode === 'right') {
-      const newE = addDays(origE, deltaDays);
-      if (newE >= origS) {
-        t.endDate = formatDMY(newE);
-      }
+function updateCell(idx, field, val) {
+  const p = getProj();
+  const t = p.tasks[idx];
+  if (field === 'start') {
+    if (val.trim().startsWith('=')) { t.formula = val.trim(); }
+    else { t.formula = ''; t.start = val.trim(); const s = parseDMY(t.start); if(s) t.end = fmtDMY(addDays(s, (Number(t.days)||1)-1)); }
+  } else if (field === 'end') {
+    t.end = val.trim();
+  } else if (field === 'days') {
+    const d = Math.max(1, parseInt(val,10)||1);
+    t.days = d;
+    const s = parseDMY(t.start);
+    if (s) t.end = fmtDMY(addDays(s, d - 1));
+  } else if (field === 'depId') {
+    t.depId = val;
+    if (!val) t.formula = '';
+    else {
+      const predIdx = p.tasks.findIndex(x => x.id === val);
+      if (predIdx !== -1) t.formula = `=${predIdx + 1}+0`;
     }
+  } else {
+    t[field] = val;
+  }
+  recalcProject(p); save(); renderGantt();
+}
+
+function startColResize(e, colIdx) {
+  e.stopPropagation();
+  const p = getProj();
+  const startX = e.clientX;
+  const startW = p.colWidths[colIdx];
+  const onMove = ev => {
+    p.colWidths[colIdx] = Math.max(38, startW + (ev.clientX - startX));
     renderGantt();
-  }
-
-  function onUp() {
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-    if (!moved) openTaskModal(taskId);
-  }
-
+  };
+  const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); save(); };
   document.addEventListener('mousemove', onMove);
   document.addEventListener('mouseup', onUp);
 }
 
-// Sync vertical scroll between spreadsheet and timeline
-document.getElementById('ganttRight').addEventListener('scroll', function() {
-  document.getElementById('ganttLeft').scrollTop = this.scrollTop;
-});
+function startBarDrag(e, taskId, mode, pxPerDay) {
+  e.stopPropagation();
+  const p = getProj();
+  const t = p.tasks.find(x => x.id === taskId);
+  const origS = parseDMY(t.start), origE = parseDMY(t.end);
+  if (!origS || !origE) return;
+  const startX = e.clientX;
+  const onMove = ev => {
+    const dDays = Math.round((ev.clientX - startX) / pxPerDay);
+    if (mode === 'move') {
+      t.formula = '';
+      t.start = fmtDMY(addDays(origS, dDays));
+      t.end = fmtDMY(addDays(origE, dDays));
+    } else if (mode === 'left') {
+      const ns = addDays(origS, dDays);
+      if (ns <= origE) { t.formula = ''; t.start = fmtDMY(ns); }
+    } else if (mode === 'right') {
+      const ne = addDays(origE, dDays);
+      if (ne >= origS) t.end = fmtDMY(ne);
+    }
+    recalcProject(p); renderGantt();
+  };
+  const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); save(); };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
 
-// TASK MODAL
-function openTaskModal(taskId = null) {
-  const proj = getActiveProject();
-  if (!proj) return;
-  state.editingTaskId = taskId;
-
-  const depSelect = document.getElementById('mDep');
-  depSelect.innerHTML = `<option value="">None</option>` + proj.tasks
-    .filter(t => t.id !== taskId)
-    .map(t => `<option value="${t.id}">#${proj.tasks.indexOf(t)+1} ${escapeHtml(t.name)}</option>`).join('');
-
-  if (taskId) {
-    const t = proj.tasks.find(x => x.id === taskId);
-    document.getElementById('modalTitle').textContent = 'Edit Task';
-    document.getElementById('mName').value = t.name;
-    document.getElementById('mCategory').value = t.category || '';
-    document.getElementById('mOwner').value = t.owner || '';
-    document.getElementById('mStatus').value = t.status;
-    document.getElementById('mDep').value = t.dependsOn || '';
-    document.getElementById('mStart').value = t.startFormula || t.startDate;
-    document.getElementById('mEnd').value = t.endDate;
-    document.getElementById('mDeleteBtn').style.display = 'inline-flex';
-  } else {
-    const today = new Date();
-    document.getElementById('modalTitle').textContent = 'Add Task';
-    document.getElementById('mName').value = '';
-    document.getElementById('mCategory').value = '';
-    document.getElementById('mOwner').value = '';
-    document.getElementById('mStatus').value = 'To Do';
-    document.getElementById('mDep').value = '';
-    document.getElementById('mStart').value = formatDMY(today);
-    document.getElementById('mEnd').value = formatDMY(addDays(today, 4));
-    document.getElementById('mDeleteBtn').style.display = 'none';
+// PERT Chart
+function computePertCPM(tasks) {
+  const map = {};
+  tasks.forEach((t, i) => map[t.id] = {t, idx: i+1, dur: Math.max(1, Number(t.days)||1), es:0, ef:0, ls:0, lf:0, slack:0, level:0, preds:[], succs:[]});
+  tasks.forEach(t => {
+    if (t.depId && map[t.depId]) {
+      map[t.id].preds.push(t.depId);
+      map[t.depId].succs.push(t.id);
+    }
+  });
+  // Forward pass
+  for (let pass = 0; pass < tasks.length; pass++) {
+    tasks.forEach(t => {
+      const n = map[t.id];
+      n.es = n.preds.length ? Math.max(...n.preds.map(pid => map[pid].ef)) : 0;
+      n.ef = n.es + n.dur;
+      n.level = n.preds.length ? Math.max(...n.preds.map(pid => map[pid].level + 1)) : 0;
+    });
   }
-  document.getElementById('taskModal').style.display = 'flex';
+  const projEnd = Math.max(1, ...Object.values(map).map(n => n.ef));
+  // Backward pass
+  for (let pass = 0; pass < tasks.length; pass++) {
+    [...tasks].reverse().forEach(t => {
+      const n = map[t.id];
+      n.lf = n.succs.length ? Math.min(...n.succs.map(sid => map[sid].ls)) : projEnd;
+      n.ls = n.lf - n.dur;
+      n.slack = n.ls - n.es;
+    });
+  }
+  return map;
 }
 
-function closeTaskModal() {
-  document.getElementById('taskModal').style.display = 'none';
+function resetPertLayout() {
+  const p = getProj(); if (!p) return;
+  p.tasks.forEach(t => { delete t.px; delete t.py; });
+  save(); renderPert();
 }
 
-function saveTaskModal() {
-  const proj = getActiveProject();
-  if (!proj) return;
-  const name = document.getElementById('mName').value.trim();
-  const startRaw = document.getElementById('mStart').value.trim();
-  const endRaw = document.getElementById('mEnd').value.trim();
-  if (!name) return alert('Task name is required.');
+function renderPert() {
+  const p = getProj(); if (!p) return;
+  recalcProject(p);
+  const stage = document.getElementById('pertStage');
+  const cpm = computePertCPM(p.tasks);
+  const colCounts = {};
+  let maxX = 1200, maxY = 700;
 
-  let startFormula = '';
-  let startDate = startRaw;
-  let endDate = endRaw;
-  let dependsOn = document.getElementById('mDep').value;
+  p.tasks.forEach(t => {
+    const info = cpm[t.id];
+    const col = info.level;
+    const row = colCounts[col] || 0;
+    colCounts[col] = row + 1;
+    if (t.px === undefined || t.py === undefined) {
+      t.px = 30 + col * 270;
+      t.py = 30 + row * 135;
+    }
+    maxX = Math.max(maxX, t.px + 260);
+    maxY = Math.max(maxY, t.py + 160);
+  });
 
-  if (startRaw.startsWith('=')) {
-    const m = startRaw.slice(1).trim().match(/^(\d+)\s*([+-]\s*\d+)?$/);
-    if (!m) return alert('Invalid equation. Use format like =1+3 or =2-1.');
-    startFormula = startRaw;
-    const refIdx = parseInt(m[1], 10) - 1;
-    if (proj.tasks[refIdx]) {
-      dependsOn = proj.tasks[refIdx].id;
-      const refEnd = parseDMY(proj.tasks[refIdx].endDate);
-      const offset = m[2] ? parseInt(m[2].replace(/\s+/g, ''), 10) : 0;
-      const calcStart = addDays(refEnd, offset);
-      startDate = formatDMY(calcStart);
-      if (!parseDMY(endDate) || parseDMY(endDate) < calcStart) {
-        endDate = formatDMY(addDays(calcStart, 2));
+  stage.style.width = maxX + 'px';
+  stage.style.height = maxY + 'px';
+  let html = '';
+
+  p.tasks.forEach(t => {
+    const info = cpm[t.id];
+    const isCrit = info.slack === 0;
+    html += `<div class="p-node ${isCrit?'critical':''}" style="left:${t.px}px;top:${t.py}px" onmousedown="startPertDrag(event,'${t.id}')">
+      <div class="p-node-head"><span>#${info.idx} • ${info.dur}d</span><span>Slack: ${info.slack}d</span></div>
+      <div class="p-node-title">${t.title}</div>
+      <div class="p-node-grid">
+        <span>Start: ${t.start}</span><span>End: ${t.end}</span>
+        <span>ES: Day ${info.es}</span><span>EF: Day ${info.ef}</span>
+      </div>
+    </div>`;
+  });
+
+  let svg = `<svg class="dep-svg" width="${maxX}" height="${maxY}"><defs>
+    <marker id="pArr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#64748b"/></marker>
+    <marker id="pArrCrit" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#dc2626"/></marker>
+  </defs>`;
+  p.tasks.forEach(t => {
+    if (t.depId) {
+      const pred = p.tasks.find(x => x.id === t.depId);
+      if (pred) {
+        const isCrit = cpm[t.id].slack === 0 && cpm[pred.id].slack === 0;
+        const x1 = pred.px + 205, y1 = pred.py + 48;
+        const x2 = t.px, y2 = t.py + 48;
+        const cx = (x1 + x2) / 2;
+        svg += `<path d="M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}" fill="none" stroke="${isCrit?'#dc2626':'#64748b'}" stroke-width="${isCrit?2:1.5}" marker-end="url(#${isCrit?'pArrCrit':'pArr'})"/>`;
       }
     }
-  } else {
-    if (!parseDMY(startRaw) || !parseDMY(endRaw)) {
-      return alert('Please enter valid dates in D/M/YYYY format (e.g., 4/5/2026).');
-    }
-    if (parseDMY(endRaw) < parseDMY(startRaw)) {
-      return alert('End Date cannot be earlier than Start Date.');
-    }
-  }
+  });
+  svg += `</svg>`;
+  stage.innerHTML = svg + html;
+}
 
-  const payload = {
-    name,
-    category: document.getElementById('mCategory').value.trim(),
-    owner: document.getElementById('mOwner').value.trim(),
-    status: document.getElementById('mStatus').value,
-    dependsOn,
-    startFormula,
-    startDate,
-    endDate
+function startPertDrag(e, taskId) {
+  const p = getProj();
+  const t = p.tasks.find(x => x.id === taskId);
+  const startX = e.clientX, startY = e.clientY;
+  const origX = t.px, origY = t.py;
+  const onMove = ev => {
+    t.px = Math.max(10, origX + (ev.clientX - startX));
+    t.py = Math.max(10, origY + (ev.clientY - startY));
+    renderPert();
   };
+  const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); save(); };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
 
-  if (state.editingTaskId) {
-    const idx = proj.tasks.findIndex(t => t.id === state.editingTaskId);
-    if (idx !== -1) proj.tasks[idx] = { ...proj.tasks[idx], ...payload };
+// Modal
+function openTaskModal(taskId = null) {
+  const p = getProj(); if (!p) return;
+  const sel = document.getElementById('fDep');
+  sel.innerHTML = '<option value="">None</option>';
+  p.tasks.forEach((cand, i) => {
+    if (cand.id !== taskId) sel.innerHTML += `<option value="${cand.id}">#${i+1} ${cand.title}</option>`;
+  });
+  if (taskId) {
+    const t = p.tasks.find(x => x.id === taskId);
+    document.getElementById('modalTitle').textContent = 'Edit Task';
+    document.getElementById('editTaskId').value = t.id;
+    document.getElementById('fTitle').value = t.title;
+    document.getElementById('fCat').value = t.category || '';
+    document.getElementById('fOwner').value = t.owner || '';
+    document.getElementById('fStatus').value = t.status;
+    document.getElementById('fDep').value = t.depId || '';
+    document.getElementById('fStart').value = t.formula || t.start;
+    document.getElementById('fEnd').value = t.end;
+    document.getElementById('fDays').value = t.days;
+    document.getElementById('btnDelTask').style.display = 'inline-flex';
   } else {
-    proj.tasks.push({ id: 't_' + Date.now(), ...payload });
+    const today = fmtDMY(new Date());
+    document.getElementById('modalTitle').textContent = 'Add Task';
+    document.getElementById('editTaskId').value = '';
+    document.getElementById('fTitle').value = '';
+    document.getElementById('fCat').value = '';
+    document.getElementById('fOwner').value = '';
+    document.getElementById('fStatus').value = 'To Do';
+    document.getElementById('fDep').value = '';
+    document.getElementById('fStart').value = today;
+    document.getElementById('fEnd').value = today;
+    document.getElementById('fDays').value = 1;
+    document.getElementById('btnDelTask').style.display = 'none';
   }
-
-  resolveFormulas(proj);
-  saveState();
-  closeTaskModal();
-  switchView(state.view);
+  document.getElementById('taskModal').classList.add('open');
 }
 
-function deleteTaskFromModal() {
-  const proj = getActiveProject();
-  if (!proj || !state.editingTaskId) return;
-  proj.tasks = proj.tasks.filter(t => t.id !== state.editingTaskId);
-  proj.tasks.forEach(t => { if (t.dependsOn === state.editingTaskId) t.dependsOn = ''; });
-  saveState();
-  closeTaskModal();
-  switchView(state.view);
+function closeModal() { document.getElementById('taskModal').classList.remove('open'); }
+
+function saveTaskModal() {
+  const p = getProj();
+  const id = document.getElementById('editTaskId').value;
+  const title = document.getElementById('fTitle').value.trim();
+  if (!title) return alert('Task title is required');
+  const rawStart = document.getElementById('fStart').value.trim();
+  const isFormula = rawStart.startsWith('=');
+  const days = Math.max(1, parseInt(document.getElementById('fDays').value,10) || 1);
+  let start = isFormula ? fmtDMY(new Date()) : rawStart;
+  let end = document.getElementById('fEnd').value.trim();
+  if (!isFormula && parseDMY(start) && !parseDMY(end)) end = fmtDMY(addDays(parseDMY(start), days - 1));
+
+  const obj = {
+    id: id || ('t_' + Date.now()),
+    title,
+    category: document.getElementById('fCat').value.trim(),
+    owner: document.getElementById('fOwner').value.trim(),
+    status: document.getElementById('fStatus').value,
+    depId: document.getElementById('fDep').value,
+    formula: isFormula ? rawStart : '',
+    start, end, days
+  };
+  if (id) {
+    const idx = p.tasks.findIndex(x => x.id === id);
+    p.tasks[idx] = {...p.tasks[idx], ...obj};
+  } else {
+    p.tasks.push(obj);
+  }
+  recalcProject(p); save(); closeModal();
+  const activeV = document.querySelector('.tab-btn.active').dataset.v;
+  switchView(activeV);
 }
 
-// EXPORT / IMPORT
+function deleteTask() {
+  const p = getProj();
+  const id = document.getElementById('editTaskId').value;
+  p.tasks = p.tasks.filter(t => t.id !== id);
+  p.tasks.forEach(t => { if (t.depId === id) { t.depId = ''; t.formula = ''; } });
+  recalcProject(p); save(); closeModal();
+  switchView(document.querySelector('.tab-btn.active').dataset.v);
+}
+
+// Export / Import
 function exportJSON() {
-  const blob = new Blob([JSON.stringify({ projects: state.projects, colWidths }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'kanban_gantt_backup.json';
+  a.download = 'project_schedule_backup.json';
   a.click();
 }
 
 function importJSON(e) {
-  const file = e.target.files[0];
-  if (!file) return;
+  const file = e.target.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
     try {
       const data = JSON.parse(ev.target.result);
-      if (Array.isArray(data.projects)) {
-        state.projects = data.projects;
-        if (data.colWidths) colWidths = { ...colWidths, ...data.colWidths };
-        saveState();
-        saveColWidths();
-        showDashboard();
-        alert('Projects imported successfully!');
-      } else {
-        alert('Invalid JSON format.');
-      }
-    } catch (err) {
-      alert('Failed to parse JSON file.');
-    }
+      if (data && Array.isArray(data.projects)) {
+        state = data; save(); goHome(); alert('Schedule imported successfully!');
+      } else alert('Invalid JSON format.');
+    } catch { alert('Error reading JSON file.'); }
   };
   reader.readAsText(file);
-  e.target.value = '';
 }
 
 function exportCSV() {
-  const proj = getActiveProject();
-  if (!proj) return;
-  resolveFormulas(proj);
-  const headers = ['Row', 'Task Name', 'Category', 'Owner', 'Status', 'Start Formula', 'Start Date', 'End Date', 'Days', 'Depends On'];
-  const rows = proj.tasks.map((t, i) => {
-    const s = parseDMY(t.startDate), e = parseDMY(t.endDate);
-    const days = (s && e) ? diffDays(s, e) : 1;
-    const depTask = proj.tasks.find(x => x.id === t.dependsOn);
-    const depLabel = depTask ? `#${proj.tasks.indexOf(depTask)+1} ${depTask.name}` : '';
-    return [i + 1, t.name, t.category || '', t.owner || '', t.status, t.startFormula || '', t.startDate, t.endDate, days, depLabel]
-      .map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+  const p = getProj(); if (!p) return;
+  const rows = [['Row','Task','Category','Owner','Status','Start Date','End Date','Days','Depends On']];
+  p.tasks.forEach((t, i) => {
+    const predIdx = p.tasks.findIndex(x => x.id === t.depId);
+    rows.push([i+1, `"${t.title.replace(/"/g,'""')}"`, `"${t.category||''}"`, `"${t.owner||''}"`, t.status, t.start, t.end, t.days, predIdx!==-1 ? `#${predIdx+1}` : '']);
   });
-  const csv = [headers.join(','), ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([rows.map(r=>r.join(',')).join('
+')], {type:'text/csv'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${proj.name.replace(/[^a-z0-9]/gi, '_')}_schedule.csv`;
+  a.download = `${p.name.replace(/\s+/g,'_')}.csv`;
   a.click();
 }
 
-function escapeHtml(str) {
-  return String(str || '').replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
-}
-
-loadState();
-showDashboard();
+renderDashboard();
 </script>
 </body>
 </html>
