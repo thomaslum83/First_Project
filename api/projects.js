@@ -8,6 +8,18 @@ module.exports = async function handler(req, res) {
     }
 
     const sql = neon(dbUrl);
+
+    // Automatically creates the projects table if it doesn't exist yet
+    await sql`
+      CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        owner TEXT NOT NULL,
+        name TEXT NOT NULL,
+        data JSONB NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `;
+
     const owner = req.query.owner || (req.body && req.body.owner) || 'default';
 
     if (req.method === 'GET') {
