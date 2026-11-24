@@ -1,248 +1,199 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Project Tracker — Kanban, Gantt & PERT</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Kanban, Gantt & PERT Tracker</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-  <!-- Top Navigation Bar -->
-  <header class="app-header">
-    <div class="header-left">
-      <button id="btn-back-dashboard" class="btn btn-secondary hidden" title="Back to Projects Dashboard">← All Projects</button>
-      <h1 id="header-title">Projects Dashboard</h1>
-      <span id="project-badge" class="badge hidden"></span>
+  <header class="topbar">
+    <div class="topbar-left">
+      <button id="btnDashboard" class="btn btn-secondary" title="Back to Projects Dashboard">🏠 Projects</button>
+      <h1 id="headerTitle" class="app-title">Projects Dashboard</h1>
     </div>
-    <div class="header-right">
-      <button id="btn-export-json" class="btn btn-secondary" title="Backup all projects to a JSON file">Export JSON</button>
-      <button id="btn-import-json" class="btn btn-secondary" title="Restore projects from a JSON file">Import JSON</button>
-      <input type="file" id="input-import-json" accept=".json" class="hidden">
-      <button id="btn-export-csv" class="btn btn-secondary hidden" title="Export active project schedule to CSV">Export CSV</button>
-      <button id="btn-new-project" class="btn btn-primary">+ New Project</button>
-      <button id="btn-new-task" class="btn btn-primary hidden">+ Add Task</button>
+    <div id="projectNav" class="view-tabs hidden">
+      <button class="tab-btn active" data-view="kanban">📋 Kanban Board</button>
+      <button class="tab-btn" data-view="gantt">📊 Gantt Chart</button>
+      <button class="tab-btn" data-view="pert">🕸️ PERT Chart</button>
+    </div>
+    <div class="topbar-right">
+      <button id="btnNewProjectTop" class="btn btn-primary" onclick="openProjectModal()">+ New Project</button>
+      <button id="btnExportJson" class="btn btn-secondary">Export JSON</button>
+      <button id="btnImportJson" class="btn btn-secondary">Import JSON</button>
+      <input type="file" id="importJsonInput" accept=".json" class="hidden" />
+      <button id="btnExportCsv" class="btn btn-secondary hidden">Export CSV</button>
     </div>
   </header>
 
-  <!-- View 1: Projects Dashboard -->
-  <main id="view-dashboard" class="view-container">
-    <div class="dashboard-intro">
-      <p>Create and manage separate project workspaces. Each project includes synchronized Kanban, Gantt, and PERT views.</p>
+  <!-- DASHBOARD VIEW -->
+  <main id="viewDashboard" class="view-section">
+    <div class="dashboard-header">
+      <div>
+        <h2>Your Projects</h2>
+        <p class="subtitle">Select a project workspace or create a new schedule.</p>
+      </div>
+      <button id="btnNewProjectDash" class="btn btn-primary btn-lg" onclick="openProjectModal()">+ New Project</button>
     </div>
-    <div id="projects-grid" class="projects-grid"></div>
+    <div id="projectGrid" class="project-grid"></div>
   </main>
 
-  <!-- Project Workspace Container -->
-  <section id="view-workspace" class="workspace-container hidden">
-
-    <!-- Sub-Navigation & Toolbar -->
-    <div class="workspace-toolbar">
-      <div class="view-tabs">
-        <button class="tab-btn active" data-view="kanban">Kanban Board</button>
-        <button class="tab-btn" data-view="gantt">Gantt Chart</button>
-        <button class="tab-btn" data-view="pert">PERT Chart</button>
-      </div>
-
-      <!-- Status Legend -->
-      <div class="status-legend">
-        <span class="legend-item"><i class="dot dot-pending"></i>Pending</span>
-        <span class="legend-item"><i class="dot dot-todo"></i>To Do</span>
-        <span class="legend-item"><i class="dot dot-inprogress"></i>In Progress</span>
-        <span class="legend-item"><i class="dot dot-completed"></i>Completed</span>
-        <span class="legend-item"><i class="dot dot-warning"></i>Near Deadline (&le;7d)</span>
-        <span class="legend-item"><i class="dot dot-overdue"></i>Exceeded Deadline</span>
-      </div>
-
-      <!-- Gantt-Specific Controls -->
-      <div id="gantt-controls" class="toolbar-actions hidden">
-        <button id="btn-sort-date" class="btn btn-sm btn-secondary" title="Sort rows chronologically by Start Date">⇅ Sort by Start Date</button>
-        <div class="btn-group">
-          <button id="btn-scale-weeks" class="btn btn-sm active">Weeks</button>
-          <button id="btn-scale-days" class="btn btn-sm">Days</button>
-        </div>
-        <div class="btn-group">
-          <button id="btn-zoom-out" class="btn btn-sm" title="Shrink timeline width">−</button>
-          <button id="btn-zoom-in" class="btn btn-sm" title="Expand timeline width">+</button>
-        </div>
-      </div>
-
-      <!-- PERT-Specific Controls -->
-      <div id="pert-controls" class="toolbar-actions hidden">
-        <span class="critical-legend"><i class="dot dot-overdue"></i>Critical Path (0 Slack)</span>
-        <button id="btn-pert-autolayout" class="btn btn-sm btn-secondary">Auto Layout</button>
+  <!-- KANBAN VIEW -->
+  <main id="viewKanban" class="view-section hidden">
+    <div class="toolbar">
+      <button id="btnAddTaskKanban" class="btn btn-primary" onclick="openTaskModal()">+ Add Task</button>
+      <div class="legend">
+        <span class="badge status-pending">Pending</span>
+        <span class="badge status-todo">To Do</span>
+        <span class="badge status-progress">In Progress</span>
+        <span class="badge status-done">Completed</span>
+        <span class="badge status-warning">Warning (&le;7d)</span>
+        <span class="badge status-overdue">Past Deadline</span>
       </div>
     </div>
-
-    <!-- View 2: Kanban Board -->
-    <div id="subview-kanban" class="kanban-board">
-      <div class="kanban-column col-alert" data-status="Alert">
-        <div class="column-header">
-          <h3>⚠️ Past Deadline / Warning</h3>
-          <span class="count-badge" id="count-alert">0</span>
-        </div>
-        <div class="column-body" id="col-body-alert"></div>
+    <div class="kanban-board">
+      <div class="kanban-col warning-col" data-col="warning">
+        <div class="col-header">⚠️ Past Deadline / Warning <span id="count-warning" class="count-pill">0</span></div>
+        <div id="col-warning" class="col-body"></div>
       </div>
-
-      <div class="kanban-column" data-status="Pending">
-        <div class="column-header">
-          <h3>Pending</h3>
-          <span class="count-badge" id="count-pending">0</span>
-        </div>
-        <div class="column-body drop-zone" id="col-body-pending" data-status="Pending"></div>
+      <div class="kanban-col" data-col="To Do">
+        <div class="col-header">To Do / Pending <span id="count-todo" class="count-pill">0</span></div>
+        <div id="col-todo" class="col-body drop-zone" data-status="To Do"></div>
       </div>
-
-      <div class="kanban-column" data-status="To Do">
-        <div class="column-header">
-          <h3>To Do</h3>
-          <span class="count-badge" id="count-todo">0</span>
-        </div>
-        <div class="column-body drop-zone" id="col-body-todo" data-status="To Do"></div>
+      <div class="kanban-col" data-col="In Progress">
+        <div class="col-header">In Progress <span id="count-progress" class="count-pill">0</span></div>
+        <div id="col-progress" class="col-body drop-zone" data-status="In Progress"></div>
       </div>
-
-      <div class="kanban-column" data-status="In Progress">
-        <div class="column-header">
-          <h3>In Progress</h3>
-          <span class="count-badge" id="count-inprogress">0</span>
-        </div>
-        <div class="column-body drop-zone" id="col-body-inprogress" data-status="In Progress"></div>
-      </div>
-
-      <div class="kanban-column" data-status="Completed">
-        <div class="column-header">
-          <h3>Completed</h3>
-          <span class="count-badge" id="count-completed">0</span>
-        </div>
-        <div class="column-body drop-zone" id="col-body-completed" data-status="Completed"></div>
+      <div class="kanban-col" data-col="Done">
+        <div class="col-header">Completed <span id="count-done" class="count-pill">0</span></div>
+        <div id="col-done" class="col-body drop-zone" data-status="Done"></div>
       </div>
     </div>
+  </main>
 
-    <!-- View 3: Gantt Chart + Resizable Spreadsheet -->
-    <div id="subview-gantt" class="gantt-wrapper hidden">
-      <div class="gantt-split" id="gantt-split">
-        <!-- Left Editable Table -->
-        <div class="gantt-table-pane" id="gantt-table-pane">
-          <table class="gantt-table" id="gantt-table">
-            <thead>
-              <tr>
-                <th data-col="index" style="width: 72px;"># / Move<div class="resizer"></div></th>
-                <th data-col="name" style="width: 210px;">Task / Description<div class="resizer"></div></th>
-                <th data-col="owner" style="width: 100px;">Owner<div class="resizer"></div></th>
-                <th data-col="start" style="width: 110px;">Start (D/M/Y)<div class="resizer"></div></th>
-                <th data-col="end" style="width: 110px;">End (D/M/Y)<div class="resizer"></div></th>
-                <th data-col="days" style="width: 65px;">Days<div class="resizer"></div></th>
-                <th data-col="depends" style="width: 130px;">Depends On<div class="resizer"></div></th>
-              </tr>
-            </thead>
-            <tbody id="gantt-table-body"></tbody>
-          </table>
-        </div>
-
-        <!-- Right Timeline Grid -->
-        <div class="gantt-timeline-pane" id="gantt-timeline-pane">
-          <div class="gantt-timeline-header" id="gantt-timeline-header"></div>
-          <div class="gantt-timeline-canvas" id="gantt-timeline-canvas">
-            <div class="gantt-grid-lines" id="gantt-grid-lines"></div>
-            <div class="gantt-today-line hidden" id="gantt-today-line"></div>
-            <svg class="gantt-arrows-svg" id="gantt-arrows-svg"></svg>
-            <div class="gantt-bars-layer" id="gantt-bars-layer"></div>
+  <!-- GANTT VIEW -->
+  <main id="viewGantt" class="view-section hidden">
+    <div class="toolbar">
+      <button id="btnAddTaskGantt" class="btn btn-primary" onclick="openTaskModal()">+ Add Task</button>
+      <button id="btnSortStart" class="btn btn-secondary">⇅ Sort by Start Date</button>
+      <div class="zoom-group">
+        <button id="btnScaleWeek" class="btn btn-secondary active">Weeks</button>
+        <button id="btnScaleDay" class="btn btn-secondary">Days</button>
+        <button id="btnZoomOut" class="btn btn-secondary" title="Shrink">−</button>
+        <button id="btnZoomIn" class="btn btn-secondary" title="Expand">+</button>
+      </div>
+      <span class="hint-text">Tip: Drag ⋮⋮ or click ▲/▼ to reorder rows. Type <code>=1+3</code> in Start to link 3d after Row 1.</span>
+    </div>
+    <div class="gantt-container">
+      <div id="ganttTablePane" class="gantt-table-pane">
+        <table id="ganttTable" class="gantt-table">
+          <thead>
+            <tr id="ganttHeaderRow">
+              <th data-col="idx" style="width:74px">#<div class="resizer"></div></th>
+              <th data-col="name" style="width:210px">Task / Description<div class="resizer"></div></th>
+              <th data-col="owner" style="width:95px">Owner<div class="resizer"></div></th>
+              <th data-col="start" style="width:105px">Start (D/M/Y)<div class="resizer"></div></th>
+              <th data-col="end" style="width:105px">End (D/M/Y)<div class="resizer"></div></th>
+              <th data-col="days" style="width:65px">Days<div class="resizer"></div></th>
+              <th data-col="dep" style="width:120px">Depends On<div class="resizer"></div></th>
+            </tr>
+          </thead>
+          <tbody id="ganttTableBody"></tbody>
+        </table>
+      </div>
+      <div id="ganttDivider" class="pane-divider"></div>
+      <div id="ganttTimelinePane" class="gantt-timeline-pane">
+        <div id="ganttTimelineInner" class="gantt-timeline-inner">
+          <div id="ganttTimelineHeader" class="gantt-timeline-header"></div>
+          <div id="ganttBarsContainer" class="gantt-bars-container">
+            <svg id="ganttArrowsSvg" class="gantt-arrows-svg"></svg>
           </div>
         </div>
       </div>
     </div>
+  </main>
 
-    <!-- View 4: PERT Network Diagram -->
-    <div id="subview-pert" class="pert-wrapper hidden">
-      <div class="pert-canvas" id="pert-canvas">
-        <svg class="pert-svg" id="pert-svg"></svg>
-        <div class="pert-nodes-layer" id="pert-nodes-layer"></div>
+  <!-- PERT VIEW -->
+  <main id="viewPert" class="view-section hidden">
+    <div class="toolbar">
+      <button id="btnPertAutoLayout" class="btn btn-secondary">✨ Auto Layout</button>
+      <div class="legend">
+        <span class="badge status-overdue">Critical Path (0 Slack)</span>
+        <span class="badge status-todo">Standard Path</span>
+        <span class="hint-text">Drag any task box to rearrange nodes.</span>
       </div>
     </div>
-
-  </section>
-
-  <!-- Modal: Create / Rename Project -->
-  <div id="modal-project" class="modal-backdrop hidden">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h2 id="modal-project-title">Create New Project</h2>
-        <button class="btn-close" data-close="modal-project">&times;</button>
+    <div id="pertCanvasWrapper" class="pert-wrapper">
+      <div id="pertCanvas" class="pert-canvas">
+        <svg id="pertArrowsSvg" class="pert-arrows-svg"></svg>
+        <div id="pertNodesLayer" class="pert-nodes-layer"></div>
       </div>
-      <form id="form-project">
-        <div class="form-group">
-          <label for="input-project-name">Project Name *</label>
-          <input type="text" id="input-project-name" required placeholder="e.g., Heat Tray Automation">
-        </div>
-        <div class="form-group">
-          <label for="input-project-desc">Description (Optional)</label>
-          <textarea id="input-project-desc" rows="3" placeholder="Brief overview of project scope or goals..."></textarea>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-close="modal-project">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Project</button>
-        </div>
-      </form>
+    </div>
+  </main>
+
+  <!-- NEW PROJECT MODAL -->
+  <div id="projectModal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <h3>Create New Project</h3>
+      <label class="field-label">Project Name</label>
+      <input type="text" id="inputProjectName" class="text-input" placeholder="e.g., Heat Tray Automation" />
+      <label class="field-label">Description (Optional)</label>
+      <input type="text" id="inputProjectDesc" class="text-input" placeholder="Short summary of project scope" />
+      <div class="modal-actions">
+        <button type="button" id="btnCancelProject" class="btn btn-secondary" onclick="closeProjectModal()">Cancel</button>
+        <button type="button" id="btnSaveProject" class="btn btn-primary" onclick="createProject()">Create Project</button>
+      </div>
     </div>
   </div>
 
-  <!-- Modal: Add / Edit Task -->
-  <div id="modal-task" class="modal-backdrop hidden">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h2 id="modal-task-title">Add Task</h2>
-        <button class="btn-close" data-close="modal-task">&times;</button>
+  <!-- TASK MODAL -->
+  <div id="taskModal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <h3 id="taskModalTitle">Add Task</h3>
+      <input type="hidden" id="editTaskId" />
+      <label class="field-label">Task Name / Description</label>
+      <input type="text" id="inputTaskName" class="text-input" placeholder="e.g., Design Revision" />
+      <div class="grid-2">
+        <div>
+          <label class="field-label">Category</label>
+          <input type="text" id="inputTaskCat" class="text-input" placeholder="e.g., Setup at Workshop" />
+        </div>
+        <div>
+          <label class="field-label">Owner</label>
+          <input type="text" id="inputTaskOwner" class="text-input" placeholder="e.g., Thomas" />
+        </div>
       </div>
-      <form id="form-task">
-        <input type="hidden" id="input-task-id">
-        <div class="form-group">
-          <label for="input-task-name">Task / Activity Name *</label>
-          <input type="text" id="input-task-name" required placeholder="e.g., Design Revision">
+      <div class="grid-2">
+        <div>
+          <label class="field-label">Status</label>
+          <select id="inputTaskStatus" class="text-input">
+            <option value="Pending">Pending</option>
+            <option value="To Do">To Do</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Done">Done</option>
+          </select>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="input-task-category">Category / Phase</label>
-            <input type="text" id="input-task-category" placeholder="e.g., Project Kick off">
-          </div>
-          <div class="form-group">
-            <label for="input-task-owner">Owner</label>
-            <input type="text" id="input-task-owner" placeholder="e.g., Thomas">
-          </div>
+        <div>
+          <label class="field-label">Depends On</label>
+          <select id="inputTaskDep" class="text-input"></select>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="input-task-status">Status</label>
-            <select id="input-task-status">
-              <option value="Pending">Pending (Grey)</option>
-              <option value="To Do">To Do (Blue)</option>
-              <option value="In Progress">In Progress (Green)</option>
-              <option value="Completed">Completed (Black)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="input-task-depends">Depends On (Predecessor)</label>
-            <select id="input-task-depends">
-              <option value="">None</option>
-            </select>
-          </div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <label class="field-label">Start Date (D/M/YYYY or =1+3)</label>
+          <input type="text" id="inputTaskStart" class="text-input" placeholder="4/5/2026" />
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="input-task-start">Start Date (D/M/YYYY or =Row+Days) *</label>
-            <input type="text" id="input-task-start" required placeholder="e.g., 4/5/2026 or =1+3">
-          </div>
-          <div class="form-group">
-            <label for="input-task-end">Target Finish (D/M/YYYY) *</label>
-            <input type="text" id="input-task-end" required placeholder="e.g., 24/5/2026">
-          </div>
+        <div>
+          <label class="field-label">End Date (D/M/YYYY)</label>
+          <input type="text" id="inputTaskEnd" class="text-input" placeholder="14/5/2026" />
         </div>
-        <div class="modal-footer modal-footer-between">
-          <button type="button" id="btn-delete-task" class="btn btn-danger hidden">Delete Task</button>
-          <div class="footer-right">
-            <button type="button" class="btn btn-secondary" data-close="modal-task">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save Task</button>
-          </div>
-        </div>
-      </form>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btnDeleteTask" class="btn btn-danger hidden" onclick="deleteEditingTask()">Delete</button>
+        <div style="flex:1"></div>
+        <button type="button" id="btnCancelTask" class="btn btn-secondary" onclick="closeTaskModal()">Cancel</button>
+        <button type="button" id="btnSaveTask" class="btn btn-primary" onclick="saveTaskFromModal()">Save Task</button>
+      </div>
     </div>
   </div>
 
