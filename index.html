@@ -679,7 +679,7 @@ function renderGantt(p, canEdit) {
     const depNums = String(t.deps || '').split(',').map(s => parseInt(s.trim(),10)-1).filter(n => !isNaN(n) && p.tasks[n]);
     depNums.forEach(fromIdx => {
       const fromT = p.tasks[fromIdx];
-      const x1 = (diffDays(minD, fromT.end) + 1) * pxPerDay;
+      const x1 = (diffDays(minD, fromT.end)) * pxPerDay;
       const y1 = 36 + fromIdx * 36 + 18;
       const x2 = diffDays(minD, t.start) * pxPerDay;
       const y2 = 36 + toIdx * 36 + 18;
