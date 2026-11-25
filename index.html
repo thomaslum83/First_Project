@@ -514,7 +514,7 @@ function recalcAll(proj) {
         t.start = f;
       }
       t.days = Math.max(1, parseInt(t.days, 10) || 1);
-      t.end = addDays(t.start, t.days - 1);
+      t.end = addDays(t.start, t.days);
     });
   }
 }
@@ -629,7 +629,7 @@ function renderGantt(p, canEdit) {
   p.tasks.forEach(t => { if (t.start < minD) minD = t.start; if (t.end > maxD) maxD = t.end; });
   minD = addDays(minD, -3);
   maxD = addDays(maxD, 10);
-  const totalDays = Math.max(14, diffDays(minD, maxD) + 1);
+  const totalDays = Math.max(14, diffDays(minD, maxD));
 
   let cols = [];
   if (state.scale === 'day') {
