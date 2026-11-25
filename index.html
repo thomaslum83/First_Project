@@ -270,13 +270,23 @@ let state = {
 };
 
 const todayStr = () => new Date().toISOString().slice(0,10);
-const addDays = (dStr, n) => {
-  const d = new Date(dStr + 'T00:00:00');
-  if (isNaN(d)) return todayStr();
-  d.setDate(d.getDate() + Number(n || 0));
-  return d.toISOString().slice(0,10);
+const parseDate = (dStr) => {
+  if (!dStr) return new Date(Date.UTC(2026, 0, 1));
+  const str = String(dStr).trim();
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
+    const [d, m, y] = str.split('/').map(Number);
+    return new Date(Date.UTC(y, m - 1, d));
+  }
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
 };
-const diffDays = (a, b) => Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00')) / 86400000);
+const addDays = (dStr, n) => {
+  const d = parseDate(dStr);
+  if (isNaN(d)) return todayStr();
+  d.setUTCDate(d.getUTCDate() + Number(n || 0));
+  return d.toISOString().slice(0, 10);
+};
+const diffDays = (a, b) => Math.round((parseDate(b) - parseDate(a)) / 86400000);
 const fmtDM = s => { if(!s) return ''; const p = s.split('-'); return p.length===3 ? `${p[2]}/${p[1]}` : s; };
 
 function setSync(ok) {
