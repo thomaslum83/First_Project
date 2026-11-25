@@ -527,7 +527,7 @@ function recalcAll(proj) {
   t.start = `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
 }
       t.days = Math.max(1, parseInt(t.days, 10) || 1);
-      t.end = addDays(t.start, t.days);
+      t.end = addDays(t.start, t.days-1);
     });
   }
 }
