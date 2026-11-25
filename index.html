@@ -3,322 +3,236 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Project Kanban, Gantt & PERT Tracker (Neon Cloud)</title>
+<title>Project Tracker — Kanban, Gantt & PERT</title>
 <style>
-  :root {
-    --bg: #f4f6f9;
-    --surface: #ffffff;
-    --border: #d8dee6;
-    --text: #1e293b;
-    --muted: #64748b;
-    --primary: #2563eb;
-    --primary-hover: #1d4ed8;
-    --danger: #dc2626;
-    --warn: #d97706;
-    --success: #16a34a;
-    --row-h: 38px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
-
-  /* Top Header */
-  header {
-    background: #0f172a; color: #fff; padding: 10px 20px;
-    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15); z-index: 20;
-  }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
-  .sync-badge {
-    font-size: 11px; padding: 3px 8px; border-radius: 999px; background: #1e293b; color: #38bdf8;
-    border: 1px solid #334155; display: inline-flex; align-items: center; gap: 5px;
-  }
-  .sync-badge.saving { color: #fbbf24; }
-  .sync-badge.error { color: #f87171; }
-  .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .user-pill {
-    background: #1e293b; border: 1px solid #334155; padding: 5px 10px; border-radius: 6px;
-    font-size: 13px; display: flex; align-items: center; gap: 8px;
-  }
-  button {
-    cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text);
-    padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; transition: 0.15s;
-  }
-  button:hover { background: #f1f5f9; }
-  button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
-  button.primary:hover { background: var(--primary-hover); }
-  button.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
-  button.sm { padding: 4px 8px; font-size: 12px; }
-
-  /* Login Overlay */
-  #loginScreen {
-    position: fixed; inset: 0; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-    display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px;
-  }
-  .login-card {
-    background: #fff; border-radius: 12px; padding: 28px; width: 100%; max-width: 400px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-  }
-  .login-card h2 { margin-bottom: 6px; font-size: 20px; }
-  .login-card p { color: var(--muted); font-size: 13px; margin-bottom: 18px; line-height: 1.4; }
-  .field { margin-bottom: 14px; }
-  .field label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #334155; }
-  .field input, .field select, .field textarea {
-    width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
-  }
-
-  /* Dashboard */
-  .container { max-width: 1400px; width: 100%; margin: 0 auto; padding: 20px; flex: 1; }
-  .dash-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
-  .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
-  .proj-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px;
-    display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: transform 0.15s, box-shadow 0.15s;
-  }
-  .proj-card:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,0.08); }
-  .proj-card h3 { font-size: 16px; margin-bottom: 4px; }
-  .proj-card p { font-size: 13px; color: var(--muted); }
-  .proj-meta { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
-  .proj-actions { display: flex; gap: 8px; }
-
-  /* Workspace Toolbar */
-  .ws-bar {
-    background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 20px;
-    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
-  }
-  .tabs { display: flex; gap: 6px; background: #e2e8f0; padding: 4px; border-radius: 8px; }
-  .tab-btn { border: none; background: transparent; padding: 6px 12px; border-radius: 6px; font-weight: 600; color: #475569; }
-  .tab-btn.active { background: #fff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-
-  /* Kanban */
-  .kanban-board { display: grid; grid-template-columns: repeat(4, minmax(260px, 1fr)); gap: 14px; padding: 18px; overflow-x: auto; }
-  .k-col { background: #e2e8f0; border-radius: 10px; padding: 12px; min-height: 520px; display: flex; flex-direction: column; gap: 10px; }
-  .k-col.warn-col { background: #fef2f2; border: 1px solid #fecaca; }
-  .k-col-head { font-weight: 700; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
-  .k-card {
-    background: #fff; border-radius: 8px; padding: 10px 12px; border-left: 5px solid #94a3b8;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: grab; font-size: 13px;
-  }
-  .k-card-title { font-weight: 600; margin-bottom: 6px; }
-  .k-card-meta { font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; }
-
-  /* Status & Deadline Colors */
-  .st-grey { border-left-color: #94a3b8; }
-  .st-blue { border-left-color: #2563eb; }
-  .st-green { border-left-color: #16a34a; }
-  .st-black { border-left-color: #0f172a; }
-  .st-yellow { border-left-color: #eab308; background: #fefce8; }
-  .st-red { border-left-color: #dc2626; background: #fef2f2; }
-
-  /* Gantt Split Container */
-  .gantt-controls {
-    padding: 10px 18px; background: #fff; border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
-  }
-  .gantt-wrap { display: flex; overflow: auto; height: calc(100vh - 175px); background: #fff; position: relative; }
-  .gantt-left { flex-shrink: 0; border-right: 2px solid var(--border); background: #fff; z-index: 5; }
-  .g-table { border-collapse: collapse; table-layout: fixed; font-size: 12px; }
-  .g-table th, .g-table td {
-    border: 1px solid var(--border); height: var(--row-h); padding: 0 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  }
-  .g-table th { background: #f8fafc; position: sticky; top: 0; z-index: 6; font-weight: 600; user-select: none; position: relative; }
-  .col-resizer { position: absolute; right: 0; top: 0; bottom: 0; width: 5px; cursor: col-resize; }
-  .col-resizer:hover { background: var(--primary); }
-  .g-cell-input {
-    width: 100%; height: 100%; border: none; background: transparent; font-size: 12px; color: var(--text); outline: none;
-  }
-  .g-cell-input:focus { background: #eff6ff; }
-  .row-actions { display: flex; align-items: center; gap: 2px; justify-content: center; }
-  .row-btn { padding: 1px 4px; font-size: 10px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 3px; }
-
-  /* Gantt Timeline */
-  .gantt-right { position: relative; flex: 1; }
-  .g-header-row { display: flex; height: var(--row-h); position: sticky; top: 0; background: #f8fafc; z-index: 4; border-bottom: 1px solid var(--border); }
-  .g-col-head {
-    border-right: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 600; color: #475569; flex-shrink: 0;
-  }
-  .g-col-head.wknd { background: #f1f5f9; }
-  .g-body { position: relative; }
-  .g-grid-row { display: flex; height: var(--row-h); border-bottom: 1px solid #f1f5f9; }
-  .g-grid-cell { border-right: 1px solid #f1f5f9; height: 100%; flex-shrink: 0; }
-  .g-grid-cell.wknd { background: #f8fafc; }
-
-  .g-bar {
-    position: absolute; height: 28px; top: 5px; border-radius: 5px; color: #fff; font-size: 10px;
-    display: flex; align-items: center; justify-content: space-between; padding: 0 5px; gap: 4px;
-    cursor: move; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,0.2); z-index: 3; overflow: hidden;
-  }
-  .g-bar.c-grey { background: #64748b; }
-  .g-bar.c-blue { background: #2563eb; }
-  .g-bar.c-green { background: #16a34a; }
-  .g-bar.c-black { background: #0f172a; }
-  .g-bar.c-yellow { background: #ca8a04; }
-  .g-bar.c-red { background: #dc2626; }
-  .bar-date { font-size: 9px; opacity: 0.9; font-weight: 600; flex-shrink: 0; }
-  .bar-title {
-    flex: 1; text-align: center; line-height: 1.1; font-weight: 600;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;
-  }
-  .bar-resize { width: 6px; height: 100%; cursor: ew-resize; position: absolute; right: 0; top: 0; }
-  #ganttSvg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 2; }
-
-  /* PERT Chart */
-  .pert-toolbar { padding: 10px 18px; background: #fff; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
-  .pert-canvas { position: relative; width: 100%; height: calc(100vh - 175px); overflow: auto; background: #f8fafc; }
-  #pertSvg { position: absolute; top: 0; left: 0; pointer-events: none; }
-  .pert-node {
-    position: absolute; width: 210px; background: #fff; border: 2px solid #cbd5e1; border-radius: 8px;
-    padding: 8px 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); cursor: grab; font-size: 12px; z-index: 2;
-  }
-  .pert-node.critical { border-color: #dc2626; background: #fef2f2; }
-  .pert-node-title { font-weight: 700; margin-bottom: 4px; color: #0f172a; }
-  .pert-node-sub { font-size: 11px; color: #475569; display: flex; justify-content: space-between; }
-
-  /* Modal */
-  .modal-backdrop {
-    position: fixed; inset: 0; background: rgba(15,23,42,0.55); display: none;
-    align-items: center; justify-content: center; z-index: 90; padding: 16px;
-  }
-  .modal-backdrop.open { display: flex; }
-  .modal-box { background: #fff; border-radius: 10px; padding: 20px; width: 100%; max-width: 440px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
-  .modal-box h3 { margin-bottom: 14px; font-size: 17px; }
-  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-  .hidden { display: none !important; }
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+body{background:#f4f6f9;color:#1e293b;min-height:100vh;display:flex;flex-direction:column}
+header{background:#0f172a;color:#fff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px}
+.badge{font-size:11px;padding:3px 9px;border-radius:12px;font-weight:600}
+.badge.online{background:#064e3b;color:#34d399;border:1px solid #059669}
+.badge.offline{background:#451a1a;color:#f87171;border:1px solid #dc2626}
+.hdr-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.user-pill{background:#1e293b;border:1px solid #334155;padding:4px 10px;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:8px}
+button{cursor:pointer;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;transition:.15s}
+.btn-primary{background:#2563eb;color:#fff}.btn-primary:hover{background:#1d4ed8}
+.btn-sec{background:#e2e8f0;color:#1e293b}.btn-sec:hover{background:#cbd5e1}
+.btn-dark{background:#334155;color:#fff}.btn-dark:hover{background:#475569}
+.btn-danger{background:#dc2626;color:#fff}.btn-danger:hover{background:#b91c1c}
+.btn-sm{padding:4px 8px;font-size:11px}
+.btn-active{background:#2563eb!important;color:#fff!important}
+.container{padding:20px;max-width:1440px;width:100%;margin:0 auto;flex:1}
+.hidden{display:none!important}
+.dash-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+.tabs-pill{display:inline-flex;background:#e2e8f0;padding:4px;border-radius:8px;gap:4px}
+.proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+.proj-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;flex-direction:column;justify-content:space-between;gap:12px;cursor:pointer;transition:.15s}
+.proj-card:hover{border-color:#2563eb;transform:translateY(-2px)}
+.proj-meta{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#64748b}
+.tag-shared{background:#dbeafe;color:#1d4ed8;padding:2px 7px;border-radius:10px;font-weight:600}
+.tag-priv{background:#f1f5f9;color:#475569;padding:2px 7px;border-radius:10px;font-weight:600}
+.ws-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.kanban{display:grid;grid-template-columns:repeat(4,minmax(250px,1fr));gap:14px;overflow-x:auto}
+.k-col{background:#e2e8f0;border-radius:10px;padding:12px;min-height:460px;display:flex;flex-direction:column;gap:10px}
+.k-col.warn-col{background:#fef2f2;border:1px solid #fecaca}
+.k-hdr{font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:center;padding-bottom:6px;border-bottom:2px solid rgba(0,0,0,.08)}
+.k-card{background:#fff;border-radius:8px;padding:10px;box-shadow:0 1px 2px rgba(0,0,0,.08);border-left:5px solid #94a3b8;cursor:grab;font-size:12px}
+.k-card:active{cursor:grabbing}
+.k-title{font-weight:700;margin-bottom:4px;font-size:13px}
+.k-sub{color:#64748b;font-size:11px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px}
+.gantt-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;background:#fff;padding:10px;border-radius:8px;border:1px solid #e2e8f0}
+.gantt-wrap{display:flex;background:#fff;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;position:relative;min-height:480px}
+.g-left{overflow-x:auto;border-right:2px solid #94a3b8;flex-shrink:0;max-width:60%}
+table.g-tbl{border-collapse:collapse;table-layout:fixed;font-size:12px}
+.g-tbl th,.g-tbl td{border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:0 6px;height:36px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative}
+.g-tbl th{background:#f8fafc;font-weight:700;text-align:left;user-select:none}
+.resizer{position:absolute;right:0;top:0;width:5px;height:100%;cursor:col-resize;background:transparent}
+.resizer:hover{background:#2563eb}
+.g-tbl input{width:100%;border:1px solid transparent;background:transparent;font-size:12px;padding:3px;border-radius:4px}
+.g-tbl input:focus{border-color:#2563eb;background:#fff;outline:none}
+.row-ops{display:flex;align-items:center;gap:2px;font-size:11px;color:#64748b}
+.row-ops button{padding:1px 4px;font-size:10px;background:#f1f5f9}
+.g-right{flex:1;overflow-x:auto;position:relative;background:#fff}
+.g-timeline{position:relative;min-height:100%}
+.g-hdr-row{display:flex;height:36px;background:#f8fafc;border-bottom:1px solid #cbd5e1;position:sticky;top:0;z-index:5}
+.g-cell-hdr{border-right:1px solid #e2e8f0;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#475569}
+.g-cell-hdr.wknd{background:#f1f5f9;color:#94a3b8}
+.g-row-bg{height:36px;border-bottom:1px solid #f1f5f9;position:relative;display:flex}
+.g-grid-cell{border-right:1px solid #f1f5f9;height:100%;flex-shrink:0}
+.g-grid-cell.wknd{background:#f8fafc}
+.g-bar{position:absolute;top:4px;height:28px;border-radius:5px;color:#fff;font-size:10px;font-weight:600;padding:2px 6px;display:flex;align-items:center;line-height:1.1;overflow:hidden;cursor:move;box-shadow:0 1px 2px rgba(0,0,0,.2);z-index:3;user-select:none}
+.g-bar span{white-space:normal;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.g-bar .handle-r{position:absolute;right:0;top:0;width:6px;height:100%;cursor:ew-resize;background:rgba(255,255,255,.3)}
+svg.dep-svg{position:absolute;top:0;left:0;pointer-events:none;z-index:2}
+.pert-wrap{background:#fff;border:1px solid #cbd5e1;border-radius:8px;position:relative;height:540px;overflow:auto}
+.pert-canvas{position:relative;width:2200px;height:1200px;background-image:radial-gradient(#cbd5e1 1px,transparent 1px);background-size:20px 20px}
+.p-node{position:absolute;width:190px;background:#fff;border:2px solid #64748b;border-radius:8px;padding:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);cursor:grab;font-size:11px;z-index:3;user-select:none}
+.p-node.crit{border-color:#dc2626;background:#fef2f2}
+.p-node-hdr{font-weight:700;font-size:12px;margin-bottom:4px;display:flex;justify-content:space-between;gap:4px}
+.p-crit-badge{background:#dc2626;color:#fff;font-size:9px;padding:1px 5px;border-radius:4px}
+.p-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;font-size:10px;color:#475569;margin-top:4px;border-top:1px solid #e2e8f0;padding-top:4px}
+.modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.65);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal{background:#fff;border-radius:12px;padding:20px;width:100%;max-width:440px;box-shadow:0 10px 25px rgba(0,0,0,.2)}
+.modal h3{margin-bottom:12px;font-size:17px}
+.f-grp{margin-bottom:10px}
+.f-grp label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:#334155}
+.f-grp input,.f-grp select,.f-grp textarea{width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px}
+.modal-acts{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.err-txt{color:#dc2626;font-size:12px;margin-top:6px;min-height:16px}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;align-items:center}
+.leg-dot{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:4px}
 </style>
 </head>
 <body>
 
-<!-- Login / User Folder Screen -->
-<div id="loginScreen">
-  <div class="login-card">
-    <h2>Project Workspace Login</h2>
-    <p>Enter your name or team folder ID to load and save your Kanban, Gantt, and PERT projects in Neon Cloud.</p>
-    <div class="field">
-      <label>User / Folder Name</label>
-      <input type="text" id="loginUserInput" placeholder="e.g. Thomas, Engineering, TeamA" />
-    </div>
-    <button type="button" class="primary" style="width:100%; padding:10px;" onclick="loginUser()">Open My Folder</button>
-  </div>
-</div>
-
 <header>
   <div class="brand">
     <span>📋 Project Tracker</span>
-    <span id="syncBadge" class="sync-badge">● Ready</span>
+    <span id="syncBadge" class="badge offline">● Offline Cache</span>
   </div>
-  <div class="header-right">
+  <div class="hdr-right">
     <div class="user-pill">
-      <span>👤 Folder: <strong id="currentUserLabel">-</strong></span>
-      <button type="button" class="sm" onclick="switchUser()">Switch User</button>
+      <span id="userLabel">🔒 Guest (Team View)</span>
+      <button class="btn-dark btn-sm" onclick="openAuthModal()">Switch / Login</button>
     </div>
-    <button type="button" class="primary" onclick="openProjectModal()">+ New Project</button>
+    <button id="hdrNewProjBtn" class="btn-primary" onclick="openProjModal()">+ New Project</button>
   </div>
 </header>
 
-<!-- Projects Dashboard -->
-<div id="dashboardView" class="container">
-  <div class="dash-top">
-    <div>
-      <h2>Your Cloud Projects</h2>
-      <p style="font-size:13px; color:var(--muted);">Stored automatically in your Neon database folder.</p>
-    </div>
-    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <button type="button" onclick="loadProjectsFromCloud()">↻ Refresh Cloud</button>
-      <button type="button" onclick="exportJSON()">⬇ Export JSON</button>
-      <button type="button" onclick="document.getElementById('importFile').click()">⬆ Import JSON</button>
-      <input type="file" id="importFile" accept=".json" class="hidden" onchange="importJSON(event)" />
-    </div>
-  </div>
-  <div id="projectGrid" class="project-grid"></div>
-</div>
-
-<!-- Active Project Workspace -->
-<div id="workspaceView" class="hidden">
-  <div class="ws-bar">
-    <div style="display:flex; align-items:center; gap:10px;">
-      <button type="button" onclick="backToDashboard()">← Projects</button>
-      <strong id="wsProjectTitle" style="font-size:16px;">Project Name</strong>
-    </div>
-    <div class="tabs">
-      <button type="button" class="tab-btn active" id="tabKanban" onclick="switchTab('kanban')">📋 Kanban Board</button>
-      <button type="button" class="tab-btn" id="tabGantt" onclick="switchTab('gantt')">📊 Gantt Chart</button>
-      <button type="button" class="tab-btn" id="tabPert" onclick="switchTab('pert')">🕸️ PERT Chart</button>
-    </div>
-    <div style="display:flex; gap:8px;">
-      <button type="button" class="primary" onclick="openTaskModal()">+ Add Task</button>
-      <button type="button" onclick="exportCSV()">⬇ CSV</button>
-    </div>
-  </div>
-
-  <!-- Kanban View -->
-  <div id="viewKanban" class="kanban-board"></div>
-
-  <!-- Gantt View -->
-  <div id="viewGantt" class="hidden">
-    <div class="gantt-controls">
-      <div style="display:flex; gap:8px; align-items:center;">
-        <button type="button" onclick="sortTasksByDate()">⇅ Sort by Start Date</button>
-        <span style="font-size:12px; color:var(--muted);">Tip: Type <b>=1+3</b> in Start to link 3 days after Row #1.</span>
+<div class="container">
+  <!-- DASHBOARD -->
+  <div id="dashView">
+    <div class="dash-top">
+      <div>
+        <div class="tabs-pill">
+          <button id="tabPrivate" class="btn-sec btn-active" onclick="switchFolderMode('private')">🔒 My Private Folder</button>
+          <button id="tabTeam" class="btn-sec" onclick="switchFolderMode('team')">🌐 All Team Projects</button>
+        </div>
+        <p id="folderSubtitle" style="font-size:12px;color:#64748b;margin-top:6px">Viewing your password-locked personal folder.</p>
       </div>
-      <div style="display:flex; gap:6px; align-items:center;">
-        <button type="button" id="scaleWeekBtn" class="primary" onclick="setGanttScale('week')">Weeks</button>
-        <button type="button" id="scaleDayBtn" onclick="setGanttScale('day')">Days</button>
-        <button type="button" onclick="zoomGantt(-8)">−</button>
-        <button type="button" onclick="zoomGantt(8)">+</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-sec" onclick="loadProjects()">↻ Refresh Cloud</button>
+        <button class="btn-sec" onclick="exportJSON()">↓ Export JSON</button>
+        <label class="btn-sec" style="cursor:pointer;display:inline-flex;align-items:center">↑ Import JSON<input type="file" accept=".json" onchange="importJSON(event)" hidden></label>
       </div>
     </div>
-    <div class="gantt-wrap" id="ganttWrap">
-      <div class="gantt-left" id="ganttLeft"></div>
-      <div class="gantt-right" id="ganttRight"></div>
-    </div>
+    <div id="projGrid" class="proj-grid"></div>
   </div>
 
-  <!-- PERT View -->
-  <div id="viewPert" class="hidden">
-    <div class="pert-toolbar">
-      <button type="button" onclick="resetPertLayout()">↻ Auto Layout</button>
-      <span style="font-size:12px; color:var(--muted);">Red border = Critical Path (0 days slack). Drag boxes freely to arrange.</span>
+  <!-- WORKSPACE -->
+  <div id="wsView" class="hidden">
+    <div class="ws-bar">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="btn-sec" onclick="backToDash()">← Projects</button>
+        <div>
+          <strong id="wsProjTitle" style="font-size:16px">Project</strong>
+          <span id="wsReadOnlyBadge" class="tag-shared hidden" style="margin-left:6px">Read-Only Team View</span>
+          <div id="wsProjDesc" style="font-size:11px;color:#64748b"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <div class="tabs-pill">
+          <button id="vKanban" class="btn-sec btn-active" onclick="setView('kanban')">📋 Kanban</button>
+          <button id="vGantt" class="btn-sec" onclick="setView('gantt')">📊 Gantt</button>
+          <button id="vPert" class="btn-sec" onclick="setView('pert')">🕸️ PERT</button>
+        </div>
+        <button id="addTaskBtn" class="btn-primary" onclick="openTaskModal()">+ Add Task</button>
+        <button class="btn-sec" onclick="exportCSV()">↓ CSV</button>
+      </div>
     </div>
-    <div class="pert-canvas" id="pertCanvas"></div>
+
+    <div class="legend" style="margin-bottom:12px">
+      <span><i class="leg-dot" style="background:#94a3b8"></i>Not Started</span>
+      <span><i class="leg-dot" style="background:#2563eb"></i>In Progress</span>
+      <span><i class="leg-dot" style="background:#16a34a"></i>Completed (On Time)</span>
+      <span><i class="leg-dot" style="background:#0f172a"></i>Completed (Late)</span>
+      <span><i class="leg-dot" style="background:#eab308"></i>Due Soon (&le;3d)</span>
+      <span><i class="leg-dot" style="background:#dc2626"></i>Past Deadline</span>
+    </div>
+
+    <!-- KANBAN -->
+    <div id="kanbanPane" class="kanban"></div>
+
+    <!-- GANTT -->
+    <div id="ganttPane" class="hidden">
+      <div class="gantt-toolbar">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:12px;font-weight:600">Scale:</span>
+          <button id="scWeek" class="btn-sec btn-sm btn-active" onclick="setScale('week')">Weeks</button>
+          <button id="scDay" class="btn-sec btn-sm" onclick="setScale('day')">Days</button>
+          <button class="btn-sec btn-sm" onclick="zoomGantt(-6)">−</button>
+          <button class="btn-sec btn-sm" onclick="zoomGantt(6)">+</button>
+          <button class="btn-sec btn-sm" onclick="sortGanttByDate()">⇅ Sort by Date</button>
+        </div>
+        <span style="font-size:11px;color:#64748b">Tip: Type <b>=1+3</b> in Start Date to link 3 days after Row #1. Drag column edges to widen.</span>
+      </div>
+      <div class="gantt-wrap">
+        <div class="g-left">
+          <table class="g-tbl" id="gTable"></table>
+        </div>
+        <div class="g-right" id="gRight">
+          <div class="g-timeline" id="gTimeline"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PERT -->
+    <div id="pertPane" class="hidden">
+      <div class="gantt-toolbar">
+        <span style="font-size:12px"><strong>PERT Network Diagram</strong> — Red nodes & arrows mark the zero-slack <b>Critical Path</b>. Drag boxes to rearrange.</span>
+        <button class="btn-sec btn-sm" onclick="resetPertLayout()">Auto Layout</button>
+      </div>
+      <div class="pert-wrap" id="pertWrap">
+        <div class="pert-canvas" id="pertCanvas"></div>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- Create Project Modal -->
-<div id="projectModal" class="modal-backdrop">
-  <div class="modal-box">
+<!-- AUTH MODAL -->
+<div id="authModal" class="modal-bg">
+  <div class="modal">
+    <h3>🔐 Personal Folder Login</h3>
+    <p style="font-size:12px;color:#64748b;margin-bottom:12px">Enter your folder name and password. New names automatically create a password-locked folder in Neon.</p>
+    <div class="f-grp"><label>Folder / User Name</label><input id="authUser" placeholder="e.g. Thomas"></div>
+    <div class="f-grp"><label>Folder Password</label><input id="authPass" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')submitAuth()"></div>
+    <div id="authErr" class="err-txt"></div>
+    <div class="modal-acts" style="justify-content:space-between">
+      <button class="btn-sec" onclick="browsePublicTeam()">🌐 Browse Team Projects</button>
+      <div style="display:flex;gap:8px">
+        <button id="authCancelBtn" class="btn-sec hidden" onclick="closeModal('authModal')">Cancel</button>
+        <button class="btn-primary" onclick="submitAuth()">Unlock Folder</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW PROJECT MODAL -->
+<div id="projModal" class="modal-bg hidden">
+  <div class="modal">
     <h3>Create New Project</h3>
-    <div class="field">
-      <label>Project Name *</label>
-      <input type="text" id="projNameInput" placeholder="e.g. Heat Tray Automation" />
+    <div class="f-grp"><label>Project Name</label><input id="newProjName" placeholder="e.g. Heat Tray Automation"></div>
+    <div class="f-grp"><label>Description</label><input id="newProjDesc" placeholder="Short summary"></div>
+    <div class="f-grp" style="display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="newProjShared" style="width:auto">
+      <label for="newProjShared" style="margin:0;cursor:pointer">🌐 Share with All Team Projects (public view)</label>
     </div>
-    <div class="field">
-      <label>Description</label>
-      <input type="text" id="projDescInput" placeholder="Optional project summary" />
-    </div>
-    <div class="modal-footer">
-      <button type="button" onclick="closeModal('projectModal')">Cancel</button>
-      <button type="button" class="primary" onclick="createNewProject()">Create Project</button>
+    <div class="modal-acts">
+      <button class="btn-sec" onclick="closeModal('projModal')">Cancel</button>
+      <button class="btn-primary" onclick="createProject()">Create Project</button>
     </div>
   </div>
 </div>
 
-<!-- Task Modal -->
-<div id="taskModal" class="modal-backdrop">
-  <div class="modal-box">
-    <h3 id="taskModalHeading">Add Task</h3>
-    <input type="hidden" id="editTaskId" />
-    <div class="field">
-      <label>Task Name *</label>
-      <input type="text" id="tTitle" placeholder="e.g. Mechanical Assembly" />
-    </div>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-      <div class="field">
-        <label>Owner</label>
-        <input type="text" id="tOwner" placeholder="e.g. Alex" />
-      </div>
-      <div class="field">
-        <label>Status</label>
+<!-- TASK MODAL -->
+<div id="taskModal" class="modal-bg hidden">
+  <div class="modal">
+    <h3 id="tModalTitle">Task Details</h3>
+    <input type="hidden" id="editTaskId">
+    <div class="f-grp"><label>Task Name</label><input id="tName" placeholder="Task description"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="f-grp"><label>Owner</label><input id="tOwner" placeholder="Assignee"></div>
+      <div class="f-grp"><label>Status</label>
         <select id="tStatus">
           <option value="todo">To Do</option>
           <option value="inprogress">In Progress</option>
@@ -326,579 +240,490 @@
         </select>
       </div>
     </div>
-    <div style="display:grid; grid-template-columns:1fr 1fr 80px; gap:10px;">
-      <div class="field">
-        <label>Start (D/M/YYYY or =1+3)</label>
-        <input type="text" id="tStart" placeholder="4/5/2026" />
-      </div>
-      <div class="field">
-        <label>End (D/M/YYYY)</label>
-        <input type="text" id="tEnd" placeholder="14/5/2026" />
-      </div>
-      <div class="field">
-        <label>Days</label>
-        <input type="number" id="tDays" min="1" value="5" />
-      </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="f-grp"><label>Start Date (YYYY-MM-DD or =1+3)</label><input id="tStart" placeholder="2026-11-25 or =1+3"></div>
+      <div class="f-grp"><label>Duration (Days)</label><input id="tDays" type="number" min="1" value="3"></div>
     </div>
-    <div class="field">
-      <label>Depends On (Row #s, e.g. 1, 2)</label>
-      <input type="text" id="tDeps" placeholder="Optional row numbers" />
-    </div>
-    <div class="modal-footer">
-      <button type="button" id="deleteTaskBtn" class="danger hidden" onclick="deleteCurrentTask()">Delete</button>
-      <button type="button" onclick="closeModal('taskModal')">Cancel</button>
-      <button type="button" class="primary" onclick="saveTaskFromModal()">Save Task</button>
+    <div class="f-grp"><label>Depends On Row # (e.g. 1, 2)</label><input id="tDeps" placeholder="Optional row numbers"></div>
+    <div class="modal-acts" style="justify-content:space-between">
+      <button id="delTaskBtn" class="btn-danger hidden" onclick="deleteTask()">Delete</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn-sec" onclick="closeModal('taskModal')">Cancel</button>
+        <button class="btn-primary" onclick="saveTaskModal()">Save Task</button>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-let currentUser = localStorage.getItem('neon_tracker_user') || '';
-let projects = [];
-let activeProjectId = null;
-let currentTab = 'kanban';
-let ganttScale = 'week';
-let colWidth = 46;
-let colWidths = [46, 190, 80, 90, 90, 52, 75];
-let saveTimer = null;
+let state = {
+  owner: sessionStorage.getItem('pt_owner') || '',
+  password: sessionStorage.getItem('pt_pass') || '',
+  mode: sessionStorage.getItem('pt_owner') ? 'private' : 'team',
+  projects: [],
+  curId: null,
+  view: 'kanban',
+  scale: 'week',
+  colW: 42,
+  tblWidths: JSON.parse(localStorage.getItem('pt_cols') || '[54,190,85,105,92,48,75]'),
+  online: false
+};
 
-function setSyncStatus(state, text) {
+const todayStr = () => new Date().toISOString().slice(0,10);
+const addDays = (dStr, n) => {
+  const d = new Date(dStr + 'T00:00:00');
+  if (isNaN(d)) return todayStr();
+  d.setDate(d.getDate() + Number(n || 0));
+  return d.toISOString().slice(0,10);
+};
+const diffDays = (a, b) => Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00')) / 86400000);
+const fmtDM = s => { if(!s) return ''; const p = s.split('-'); return p.length===3 ? `${p[2]}/${p[1]}` : s; };
+
+function setSync(ok) {
+  state.online = ok;
   const b = document.getElementById('syncBadge');
-  b.className = 'sync-badge ' + state;
-  b.textContent = text;
+  b.className = 'badge ' + (ok ? 'online' : 'offline');
+  b.textContent = ok ? '● Synced with Neon' : '● Offline Cache';
 }
 
-/* User Login & Cloud Sync */
-window.addEventListener('DOMContentLoaded', () => {
-  if (currentUser) {
-    document.getElementById('loginScreen').classList.add('hidden');
-    document.getElementById('currentUserLabel').textContent = currentUser;
-    loadProjectsFromCloud();
+function updateHeaderUI() {
+  const lbl = document.getElementById('userLabel');
+  const newBtn = document.getElementById('hdrNewProjBtn');
+  if (state.owner) {
+    lbl.textContent = `🔓 Folder: ${state.owner}`;
+    newBtn.classList.remove('hidden');
+    document.getElementById('authCancelBtn').classList.remove('hidden');
+  } else {
+    lbl.textContent = '🌐 Guest (Team View)';
+    newBtn.classList.add('hidden');
   }
-});
-
-function loginUser() {
-  const val = document.getElementById('loginUserInput').value.trim();
-  if (!val) { alert('Please enter your User or Folder name.'); return; }
-  currentUser = val;
-  localStorage.setItem('neon_tracker_user', currentUser);
-  document.getElementById('currentUserLabel').textContent = currentUser;
-  document.getElementById('loginScreen').classList.add('hidden');
-  loadProjectsFromCloud();
+  document.getElementById('tabPrivate').classList.toggle('btn-active', state.mode === 'private');
+  document.getElementById('tabTeam').classList.toggle('btn-active', state.mode === 'team');
+  document.getElementById('folderSubtitle').textContent = state.mode === 'private'
+    ? `Viewing personal password-protected folder for ${state.owner || 'you'}.`
+    : 'Viewing shared projects across all team members (read-only for non-owners).';
 }
 
-function switchUser() {
-  document.getElementById('loginUserInput').value = currentUser;
-  document.getElementById('loginScreen').classList.remove('hidden');
+function openAuthModal() {
+  document.getElementById('authErr').textContent = '';
+  document.getElementById('authUser').value = state.owner;
+  document.getElementById('authPass').value = '';
+  document.getElementById('authModal').classList.remove('hidden');
+}
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+function browsePublicTeam() {
+  state.mode = 'team';
+  closeModal('authModal');
+  updateHeaderUI();
+  loadProjects();
 }
 
-async function loadProjectsFromCloud() {
-  setSyncStatus('saving', '↻ Loading Neon...');
+async function submitAuth() {
+  const owner = document.getElementById('authUser').value.trim();
+  const password = document.getElementById('authPass').value;
+  const err = document.getElementById('authErr');
+  if (!owner || !password) { err.textContent = 'Please enter both folder name and password.'; return; }
+  err.textContent = 'Verifying...';
   try {
-    const res = await fetch('/api/projects?owner=' + encodeURIComponent(currentUser));
-    if (!res.ok) throw new Error('API error');
-    const data = await res.json();
-    projects = Array.isArray(data) ? data : [];
-    localStorage.setItem('cache_' + currentUser, JSON.stringify(projects));
-    setSyncStatus('', '● Synced with Neon');
+    const r = await fetch('/api/projects', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action: 'auth', owner, password })
+    });
+    const data = await r.json();
+    if (!r.ok) { err.textContent = data.error || 'Authentication failed'; return; }
+    state.owner = owner;
+    state.password = password;
+    state.mode = 'private';
+    sessionStorage.setItem('pt_owner', owner);
+    sessionStorage.setItem('pt_pass', password);
+    closeModal('authModal');
+    updateHeaderUI();
+    await loadProjects();
   } catch (e) {
-    const cached = localStorage.getItem('cache_' + currentUser);
-    projects = cached ? JSON.parse(cached) : [];
-    setSyncStatus('error', '● Offline Cache');
+    // Offline fallback if server unreachable
+    state.owner = owner;
+    state.password = password;
+    state.mode = 'private';
+    sessionStorage.setItem('pt_owner', owner);
+    sessionStorage.setItem('pt_pass', password);
+    closeModal('authModal');
+    updateHeaderUI();
+    loadProjects();
   }
-  renderDashboard();
-  if (activeProjectId) renderActiveView();
 }
 
-function queueCloudSave(project) {
-  localStorage.setItem('cache_' + currentUser, JSON.stringify(projects));
-  if (!project) return;
-  setSyncStatus('saving', '↻ Saving to Neon...');
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    try {
-      const res = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner: currentUser, project })
-      });
-      if (!res.ok) throw new Error('Save failed');
-      setSyncStatus('', '● Saved to Neon');
-    } catch (e) {
-      setSyncStatus('error', '● Save Failed (Cached)');
-    }
-  }, 500);
+function switchFolderMode(mode) {
+  if (mode === 'private' && !state.owner) { openAuthModal(); return; }
+  state.mode = mode;
+  updateHeaderUI();
+  loadProjects();
 }
 
-async function deleteProject(id, e) {
-  e.stopPropagation();
-  if (!confirm('Delete this project from Neon?')) return;
-  projects = projects.filter(p => p.id !== id);
-  localStorage.setItem('cache_' + currentUser, JSON.stringify(projects));
-  renderDashboard();
+async function loadProjects() {
+  const cacheKey = `pt_cache_${state.mode}_${state.owner || 'team'}`;
   try {
-    await fetch('/api/projects?id=' + encodeURIComponent(id) + '&owner=' + encodeURIComponent(currentUser), { method: 'DELETE' });
-    setSyncStatus('', '● Deleted from Neon');
-  } catch (err) {
-    setSyncStatus('error', '● Offline Delete');
+    const url = state.mode === 'team'
+      ? '/api/projects?mode=team'
+      : `/api/projects?mode=private&owner=${encodeURIComponent(state.owner)}&password=${encodeURIComponent(state.password)}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('Fetch failed');
+    const list = await r.json();
+    state.projects = Array.isArray(list) ? list : [];
+    localStorage.setItem(cacheKey, JSON.stringify(state.projects));
+    setSync(true);
+  } catch (e) {
+    state.projects = JSON.parse(localStorage.getItem(cacheKey) || '[]');
+    setSync(false);
   }
-}
-
-/* Dashboard & Project Modal */
-function openProjectModal() {
-  document.getElementById('projNameInput').value = '';
-  document.getElementById('projDescInput').value = '';
-  document.getElementById('projectModal').classList.add('open');
-  setTimeout(() => document.getElementById('projNameInput').focus(), 50);
-}
-
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
-}
-
-function createNewProject() {
-  const name = document.getElementById('projNameInput').value.trim();
-  const desc = document.getElementById('projDescInput').value.trim();
-  if (!name) { alert('Please enter a project name.'); return; }
-  const today = formatDMY(new Date());
-  const end5 = formatDMY(addDays(new Date(), 4));
-  const newProj = {
-    id: 'proj_' + Date.now(),
-    name,
-    description: desc || 'Project schedule',
-    tasks: [
-      { id: 't_' + Date.now(), title: 'Project Kickoff & Planning', owner: currentUser, status: 'todo', start: today, end: end5, days: 5, formula: '', deps: [] }
-    ]
-  };
-  projects.unshift(newProj);
-  closeModal('projectModal');
   renderDashboard();
-  openProject(newProj.id);
-  queueCloudSave(newProj);
+  if (state.curId) renderWorkspace();
+}
+
+async function saveProjectToCloud(proj) {
+  const cacheKey = `pt_cache_${state.mode}_${state.owner || 'team'}`;
+  localStorage.setItem(cacheKey, JSON.stringify(state.projects));
+  if (!state.owner) return;
+  try {
+    const r = await fetch('/api/projects', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ owner: state.owner, password: state.password, project: proj })
+    });
+    setSync(r.ok);
+  } catch (e) { setSync(false); }
+}
+
+function isOwnerOf(proj) {
+  if (!state.owner) return false;
+  const pOwner = proj._owner || proj.owner || state.owner;
+  return pOwner.toLowerCase() === state.owner.toLowerCase();
 }
 
 function renderDashboard() {
-  const grid = document.getElementById('projectGrid');
-  if (!projects.length) {
-    grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:50px; background:#fff; border:1px dashed var(--border); border-radius:10px; color:var(--muted);">
-      No projects in folder <b>${esc(currentUser)}</b> yet. Click <b>+ New Project</b> above to create one!
+  const grid = document.getElementById('projGrid');
+  if (!state.projects.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;background:#fff;border:2px dashed #cbd5e1;border-radius:12px;padding:40px;text-align:center;color:#64748b">
+      No projects found in this view. ${state.owner ? 'Click <b>+ New Project</b> above to create one.' : 'Log in to create personal or shared projects.'}
     </div>`;
     return;
   }
-  grid.innerHTML = projects.map(p => `
-    <div class="proj-card" onclick="openProject('${p.id}')" style="cursor:pointer;">
+  grid.innerHTML = state.projects.map(p => {
+    const canEdit = isOwnerOf(p);
+    const ownerTag = p._owner || p.owner || state.owner || 'Team';
+    return `<div class="proj-card" onclick="openProject('${p.id}')">
       <div>
-        <h3>${esc(p.name)}</h3>
-        <p>${esc(p.description || '')}</p>
+        <div class="proj-meta" style="margin-bottom:6px">
+          <span>👤 ${esc(ownerTag)}</span>
+          <span class="${p.isShared ? 'tag-shared' : 'tag-priv'}">${p.isShared ? '🌐 Shared' : '🔒 Private'}</span>
+        </div>
+        <div style="font-weight:700;font-size:16px;margin-bottom:4px">${esc(p.name)}</div>
+        <div style="font-size:12px;color:#64748b">${esc(p.desc || 'No description')}</div>
       </div>
-      <div class="proj-meta">
-        <span>${(p.tasks || []).length} tasks</span>
-        <button type="button" class="sm danger" onclick="deleteProject('${p.id}', event)">Delete</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #f1f5f9;padding-top:10px" onclick="event.stopPropagation()">
+        <span style="font-size:11px;color:#64748b">${(p.tasks||[]).length} tasks</span>
+        ${canEdit ? `<div style="display:flex;gap:6px">
+          <button class="btn-sec btn-sm" onclick="toggleShare('${p.id}')">${p.isShared ? 'Make Private' : 'Share'}</button>
+          <button class="btn-danger btn-sm" onclick="deleteProject('${p.id}')">Delete</button>
+        </div>` : `<span style="font-size:11px;color:#94a3b8">View Only</span>`}
       </div>
-    </div>
-  `).join('');
-}
-
-function openProject(id) {
-  activeProjectId = id;
-  const p = getProject();
-  if (!p) return;
-  recalcFormulas(p);
-  document.getElementById('wsProjectTitle').textContent = p.name;
-  document.getElementById('dashboardView').classList.add('hidden');
-  document.getElementById('workspaceView').classList.remove('hidden');
-  renderActiveView();
-}
-
-function backToDashboard() {
-  activeProjectId = null;
-  document.getElementById('workspaceView').classList.add('hidden');
-  document.getElementById('dashboardView').classList.remove('hidden');
-  renderDashboard();
-}
-
-function getProject() {
-  return projects.find(p => p.id === activeProjectId);
-}
-
-function switchTab(tab) {
-  currentTab = tab;
-  ['kanban', 'gantt', 'pert'].forEach(t => {
-    document.getElementById('tab' + t[0].toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
-    document.getElementById('view' + t[0].toUpperCase() + t.slice(1)).classList.toggle('hidden', t !== tab);
-  });
-  renderActiveView();
-}
-
-function renderActiveView() {
-  const p = getProject();
-  if (!p) return;
-  recalcFormulas(p);
-  if (currentTab === 'kanban') renderKanban(p);
-  else if (currentTab === 'gantt') renderGantt(p);
-  else if (currentTab === 'pert') renderPert(p);
-}
-
-/* Date & Formula Helpers */
-function parseDMY(str) {
-  if (!str) return new Date();
-  const parts = String(str).trim().split('/');
-  if (parts.length !== 3) return new Date();
-  return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
-}
-
-function formatDMY(d) {
-  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
-}
-
-function formatDDMM(d) {
-  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
-}
-
-function addDays(d, n) {
-  const r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  r.setDate(r.getDate() + n);
-  return r;
-}
-
-function diffDays(d1, d2) {
-  const a = Date.UTC(d1.getFullYear(), d1.getMonth(), d1.getDate());
-  const b = Date.UTC(d2.getFullYear(), d2.getMonth(), d2.getDate());
-  return Math.round((b - a) / 86400000);
-}
-
-function getTaskColorClass(t) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const s = parseDMY(t.start);
-  const e = parseDMY(t.end);
-  if (t.status === 'done') return 'black';
-  if (today > e) return 'red';
-  if (diffDays(today, e) <= 3) return 'yellow';
-  if (t.status === 'inprogress') return 'green';
-  if (today >= s) return 'blue';
-  return 'grey';
-}
-
-function recalcFormulas(p) {
-  for (let pass = 0; pass < p.tasks.length; pass++) {
-    p.tasks.forEach((t, idx) => {
-      if (t.formula && /^=\d+([+-]\d+)?$/.test(t.formula.trim())) {
-        const m = t.formula.trim().match(/^=(\d+)([+-]\d+)?$/);
-        const refIdx = parseInt(m[1], 10) - 1;
-        const offset = m[2] ? parseInt(m[2], 10) : 0;
-        if (refIdx >= 0 && refIdx < p.tasks.length && refIdx !== idx) {
-          const refEnd = parseDMY(p.tasks[refIdx].end);
-          const newStart = addDays(refEnd, offset);
-          const dur = Math.max(1, parseInt(t.days, 10) || 1);
-          t.start = formatDMY(newStart);
-          t.end = formatDMY(addDays(newStart, dur - 1));
-          if (!t.deps.includes(p.tasks[refIdx].id)) t.deps = [p.tasks[refIdx].id];
-        }
-      } else {
-        const s = parseDMY(t.start);
-        const dur = Math.max(1, parseInt(t.days, 10) || 1);
-        t.end = formatDMY(addDays(s, dur - 1));
-      }
-    });
-  }
-}
-
-/* Kanban Board */
-function renderKanban(p) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const cols = [
-    { key: 'warn', label: '⚠️ Past Deadline / Warning', warn: true },
-    { key: 'todo', label: '📝 To Do' },
-    { key: 'inprogress', label: '🚧 In Progress' },
-    { key: 'done', label: '✅ Done' }
-  ];
-  const board = document.getElementById('viewKanban');
-  board.innerHTML = cols.map(c => {
-    const items = p.tasks.filter(t => {
-      const col = getTaskColorClass(t);
-      const isWarn = t.status !== 'done' && (col === 'red' || col === 'yellow');
-      if (c.key === 'warn') return isWarn;
-      if (isWarn && t.status === 'todo') return false;
-      return t.status === c.key;
-    });
-    return `<div class="k-col ${c.warn ? 'warn-col' : ''}" ondragover="event.preventDefault()" ondrop="dropKanban(event, '${c.key}')">
-      <div class="k-col-head"><span>${c.label}</span><span>${items.length}</span></div>
-      ${items.map(t => {
-        const cc = getTaskColorClass(t);
-        return `<div class="k-card st-${cc}" draggable="true" ondragstart="event.dataTransfer.setData('text/plain','${t.id}')" onclick="openTaskModal('${t.id}')">
-          <div class="k-card-title">${esc(t.title)}</div>
-          <div class="k-card-meta"><span>👤 ${esc(t.owner || '-')}</span><span>${t.start} → ${t.end} (${t.days}d)</span></div>
-        </div>`;
-      }).join('')}
     </div>`;
   }).join('');
 }
 
-function dropKanban(e, targetStatus) {
-  e.preventDefault();
-  if (targetStatus === 'warn') return;
-  const tid = e.dataTransfer.getData('text/plain');
-  const p = getProject();
+function openProjModal() {
+  if (!state.owner) { openAuthModal(); return; }
+  document.getElementById('newProjName').value = '';
+  document.getElementById('newProjDesc').value = '';
+  document.getElementById('newProjShared').checked = (state.mode === 'team');
+  document.getElementById('projModal').classList.remove('hidden');
+}
+
+async function createProject() {
+  const name = document.getElementById('newProjName').value.trim();
+  if (!name) { alert('Please enter a project name.'); return; }
+  const t0 = todayStr();
+  const proj = {
+    id: 'p_' + Date.now(),
+    owner: state.owner,
+    _owner: state.owner,
+    name,
+    desc: document.getElementById('newProjDesc').value.trim(),
+    isShared: document.getElementById('newProjShared').checked,
+    tasks: [
+      { id: 't1', name: 'Project Kickoff & Scope', owner: state.owner, status: 'inprogress', startFormula: t0, start: t0, days: 3, end: addDays(t0, 2), deps: '' },
+      { id: 't2', name: 'Design & Engineering', owner: state.owner, status: 'todo', startFormula: '=1+1', start: addDays(t0, 3), days: 5, end: addDays(t0, 7), deps: '1' }
+    ],
+    pertPos: {}
+  };
+  state.projects.unshift(proj);
+  closeModal('projModal');
+  await saveProjectToCloud(proj);
+  openProject(proj.id);
+}
+
+async function toggleShare(id) {
+  const p = state.projects.find(x => x.id === id);
+  if (!p || !isOwnerOf(p)) return;
+  p.isShared = !p.isShared;
+  renderDashboard();
+  await saveProjectToCloud(p);
+}
+
+async function deleteProject(id) {
+  const p = state.projects.find(x => x.id === id);
+  if (!p || !isOwnerOf(p) || !confirm(`Delete "${p.name}"?`)) return;
+  state.projects = state.projects.filter(x => x.id !== id);
+  renderDashboard();
+  try {
+    await fetch(`/api/projects?id=${encodeURIComponent(id)}&owner=${encodeURIComponent(state.owner)}&password=${encodeURIComponent(state.password)}`, { method: 'DELETE' });
+  } catch (e) {}
+}
+
+function openProject(id) {
+  state.curId = id;
+  document.getElementById('dashView').classList.add('hidden');
+  document.getElementById('wsView').classList.remove('hidden');
+  renderWorkspace();
+}
+
+function backToDash() {
+  state.curId = null;
+  document.getElementById('wsView').classList.add('hidden');
+  document.getElementById('dashView').classList.remove('hidden');
+  loadProjects();
+}
+
+function getCurProj() { return state.projects.find(x => x.id === state.curId); }
+
+function recalcAll(proj) {
+  const tasks = proj.tasks;
+  for (let pass = 0; pass < tasks.length + 1; pass++) {
+    tasks.forEach((t, idx) => {
+      const f = String(t.startFormula || t.start || '').trim();
+      const m = f.match(/^=(\d+)([+-]\d+)?$/);
+      if (m) {
+        const refIdx = parseInt(m[1], 10) - 1;
+        const offset = m[2] ? parseInt(m[2], 10) : 0;
+        if (tasks[refIdx] && tasks[refIdx].end) {
+          t.start = addDays(tasks[refIdx].end, offset);
+          if (!t.deps) t.deps = String(refIdx + 1);
+        }
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(f)) {
+        t.start = f;
+      }
+      t.days = Math.max(1, parseInt(t.days, 10) || 1);
+      t.end = addDays(t.start, t.days - 1);
+    });
+  }
+}
+
+function getTaskColor(t) {
+  const td = todayStr();
+  if (t.status === 'done') return (t.completedDate && t.completedDate > t.end) ? '#0f172a' : '#16a34a';
+  if (t.end < td) return '#dc2626';
+  if (diffDays(td, t.end) <= 3) return '#eab308';
+  return t.status === 'inprogress' ? '#2563eb' : '#94a3b8';
+}
+
+function setView(v) {
+  state.view = v;
+  ['kanban','gantt','pert'].forEach(k => {
+    document.getElementById('v'+k[0].toUpperCase()+k.slice(1)).classList.toggle('btn-active', k === v);
+    document.getElementById(k+'Pane').classList.toggle('hidden', k !== v);
+  });
+  renderWorkspace();
+}
+
+function renderWorkspace() {
+  const p = getCurProj();
+  if (!p) return;
+  recalcAll(p);
+  const canEdit = isOwnerOf(p);
+  document.getElementById('wsProjTitle').textContent = p.name;
+  document.getElementById('wsProjDesc').textContent = p.desc || '';
+  document.getElementById('wsReadOnlyBadge').classList.toggle('hidden', canEdit);
+  document.getElementById('addTaskBtn').classList.toggle('hidden', !canEdit);
+
+  if (state.view === 'kanban') renderKanban(p, canEdit);
+  if (state.view === 'gantt') renderGantt(p, canEdit);
+  if (state.view === 'pert') renderPert(p, canEdit);
+}
+
+function renderKanban(p, canEdit) {
+  const td = todayStr();
+  const cols = [
+    { key: 'warn', title: '⚠️ Past Deadline / Warning', cls: 'warn-col', items: [] },
+    { key: 'todo', title: '📌 To Do', cls: '', items: [] },
+    { key: 'inprogress', title: '🚧 In Progress', cls: '', items: [] },
+    { key: 'done', title: '✅ Done', cls: '', items: [] }
+  ];
+  p.tasks.forEach((t, i) => {
+    t._row = i + 1;
+    if (t.status !== 'done' && diffDays(td, t.end) <= 3) cols[0].items.push(t);
+    else if (t.status === 'inprogress') cols[2].items.push(t);
+    else if (t.status === 'done') cols[3].items.push(t);
+    else cols[1].items.push(t);
+  });
+  document.getElementById('kanbanPane').innerHTML = cols.map(c => `
+    <div class="k-col ${c.cls}" ondragover="event.preventDefault()" ondrop="dropKanban(event,'${c.key}')">
+      <div class="k-hdr"><span>${c.title}</span><span>${c.items.length}</span></div>
+      ${c.items.map(t => `<div class="k-card" style="border-left-color:${getTaskColor(t)}" draggable="${canEdit}" ondragstart="event.dataTransfer.setData('tid','${t.id}')" onclick="${canEdit ? `openTaskModal('${t.id}')` : ''}">
+        <div class="k-title">#${t._row} ${esc(t.name)}</div>
+        <div class="k-sub"><span>👤 ${esc(t.owner||'-')}</span><span>${fmtDM(t.start)} → ${fmtDM(t.end)} (${t.days}d)</span></div>
+      </div>`).join('')}
+    </div>
+  `).join('');
+}
+
+async function dropKanban(e, colKey) {
+  const p = getCurProj();
+  if (!p || !isOwnerOf(p)) return;
+  const tid = e.dataTransfer.getData('tid');
   const t = p.tasks.find(x => x.id === tid);
-  if (t) {
-    t.status = targetStatus;
-    renderActiveView();
-    queueCloudSave(p);
-  }
+  if (!t) return;
+  if (colKey === 'done') { t.status = 'done'; t.completedDate = todayStr(); }
+  else if (colKey === 'inprogress') { t.status = 'inprogress'; }
+  else if (colKey === 'todo') { t.status = 'todo'; }
+  renderWorkspace();
+  await saveProjectToCloud(p);
 }
 
-/* Task Modal */
-function openTaskModal(tid = '') {
-  const p = getProject();
-  document.getElementById('editTaskId').value = tid;
-  const delBtn = document.getElementById('deleteTaskBtn');
-  if (tid) {
-    const t = p.tasks.find(x => x.id === tid);
-    document.getElementById('taskModalHeading').textContent = 'Edit Task';
-    document.getElementById('tTitle').value = t.title;
-    document.getElementById('tOwner').value = t.owner || '';
-    document.getElementById('tStatus').value = t.status;
-    document.getElementById('tStart').value = t.formula || t.start;
-    document.getElementById('tEnd').value = t.end;
-    document.getElementById('tDays').value = t.days;
-    const depRows = (t.deps || []).map(did => p.tasks.findIndex(x => x.id === did) + 1).filter(n => n > 0);
-    document.getElementById('tDeps').value = depRows.join(', ');
-    delBtn.classList.remove('hidden');
-  } else {
-    document.getElementById('taskModalHeading').textContent = 'Add Task';
-    document.getElementById('tTitle').value = '';
-    document.getElementById('tOwner').value = currentUser;
-    document.getElementById('tStatus').value = 'todo';
-    const d = new Date();
-    document.getElementById('tStart').value = formatDMY(d);
-    document.getElementById('tEnd').value = formatDMY(addDays(d, 4));
-    document.getElementById('tDays').value = 5;
-    document.getElementById('tDeps').value = '';
-    delBtn.classList.add('hidden');
-  }
-  document.getElementById('taskModal').classList.add('open');
+function setScale(sc) {
+  state.scale = sc;
+  state.colW = sc === 'week' ? 44 : 32;
+  document.getElementById('scWeek').classList.toggle('btn-active', sc === 'week');
+  document.getElementById('scDay').classList.toggle('btn-active', sc === 'day');
+  renderWorkspace();
 }
-
-function saveTaskFromModal() {
-  const p = getProject();
-  const tid = document.getElementById('editTaskId').value;
-  const title = document.getElementById('tTitle').value.trim();
-  if (!title) { alert('Task name is required.'); return; }
-  const owner = document.getElementById('tOwner').value.trim();
-  const status = document.getElementById('tStatus').value;
-  const startRaw = document.getElementById('tStart').value.trim();
-  const days = Math.max(1, parseInt(document.getElementById('tDays').value, 10) || 1);
-  const depStr = document.getElementById('tDeps').value.trim();
-  const deps = depStr ? depStr.split(',').map(s => parseInt(s.trim(), 10) - 1).filter(i => i >= 0 && i < p.tasks.length).map(i => p.tasks[i].id) : [];
-
-  const isFormula = startRaw.startsWith('=');
-  const formula = isFormula ? startRaw : '';
-  const start = isFormula ? formatDMY(new Date()) : startRaw;
-  const end = formatDMY(addDays(parseDMY(start), days - 1));
-
-  if (tid) {
-    const t = p.tasks.find(x => x.id === tid);
-    Object.assign(t, { title, owner, status, start, end, days, formula, deps });
-  } else {
-    p.tasks.push({ id: 't_' + Date.now(), title, owner, status, start, end, days, formula, deps });
-  }
-  closeModal('taskModal');
-  renderActiveView();
-  queueCloudSave(p);
-}
-
-function deleteCurrentTask() {
-  const p = getProject();
-  const tid = document.getElementById('editTaskId').value;
-  p.tasks = p.tasks.filter(t => t.id !== tid);
-  p.tasks.forEach(t => t.deps = (t.deps || []).filter(d => d !== tid));
-  closeModal('taskModal');
-  renderActiveView();
-  queueCloudSave(p);
-}
-
-/* Gantt Chart */
-function setGanttScale(sc) {
-  ganttScale = sc;
-  colWidth = sc === 'week' ? 48 : 34;
-  document.getElementById('scaleWeekBtn').classList.toggle('primary', sc === 'week');
-  document.getElementById('scaleDayBtn').classList.toggle('primary', sc === 'day');
-  renderActiveView();
-}
-
 function zoomGantt(delta) {
-  colWidth = Math.max(22, Math.min(120, colWidth + delta));
-  renderActiveView();
+  state.colW = Math.max(20, Math.min(90, state.colW + delta));
+  renderWorkspace();
+}
+async function sortGanttByDate() {
+  const p = getCurProj();
+  if (!p || !isOwnerOf(p)) return;
+  p.tasks.sort((a,b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+  renderWorkspace();
+  await saveProjectToCloud(p);
 }
 
-function sortTasksByDate() {
-  const p = getProject();
-  const oldOrder = p.tasks.map(t => t.id);
-  p.tasks.sort((a, b) => parseDMY(a.start) - parseDMY(b.start));
-  rewriteFormulasAfterMove(p, oldOrder);
-  renderActiveView();
-  queueCloudSave(p);
-}
-
-function moveRow(idx, dir) {
-  const p = getProject();
-  const target = idx + dir;
-  if (target < 0 || target >= p.tasks.length) return;
-  const oldOrder = p.tasks.map(t => t.id);
-  const [item] = p.tasks.splice(idx, 1);
-  p.tasks.splice(target, 0, item);
-  rewriteFormulasAfterMove(p, oldOrder);
-  renderActiveView();
-  queueCloudSave(p);
-}
-
-function rewriteFormulasAfterMove(p, oldOrder) {
-  p.tasks.forEach(t => {
-    if (t.formula && /^=\d+/.test(t.formula)) {
-      const m = t.formula.match(/^=(\d+)(.*)$/);
-      const oldIdx = parseInt(m[1], 10) - 1;
-      const refId = oldOrder[oldIdx];
-      const newIdx = p.tasks.findIndex(x => x.id === refId);
-      if (newIdx >= 0) t.formula = '=' + (newIdx + 1) + m[2];
-    }
-  });
-}
-
-function renderGantt(p) {
-  const headers = ['#', 'Task / Description', 'Owner', 'Start', 'End', 'Days', 'Depends'];
-  const left = document.getElementById('ganttLeft');
-  let tableHtml = `<table class="g-table"><thead><tr>` + headers.map((h, i) =>
-    `<th style="width:${colWidths[i]}px">${h}<div class="col-resizer" onmousedown="startColResize(event,${i})"></div></th>`
-  ).join('') + `</tr></thead><tbody>`;
-
-  p.tasks.forEach((t, idx) => {
-    const depNums = (t.deps || []).map(did => p.tasks.findIndex(x => x.id === did) + 1).filter(n => n > 0).join(',');
-    tableHtml += `<tr>
-      <td style="text-align:center;">
-        <div class="row-actions">
-          <span>${idx+1}</span>
-          <button type="button" class="row-btn" onclick="moveRow(${idx},-1)">▲</button>
-          <button type="button" class="row-btn" onclick="moveRow(${idx},1)">▼</button>
-        </div>
-      </td>
-      <td><input class="g-cell-input" value="${esc(t.title)}" onchange="editCell(${idx},'title',this.value)" /></td>
-      <td><input class="g-cell-input" value="${esc(t.owner||'')}" onchange="editCell(${idx},'owner',this.value)" /></td>
-      <td><input class="g-cell-input" value="${esc(t.formula || t.start)}" onchange="editCell(${idx},'start',this.value)" /></td>
-      <td><input class="g-cell-input" value="${esc(t.end)}" onchange="editCell(${idx},'end',this.value)" /></td>
-      <td><input class="g-cell-input" type="number" min="1" value="${t.days}" onchange="editCell(${idx},'days',this.value)" /></td>
-      <td><input class="g-cell-input" value="${depNums}" onchange="editCell(${idx},'deps',this.value)" /></td>
-    </tr>`;
-  });
-  tableHtml += `</tbody></table>`;
-  left.innerHTML = tableHtml;
+function renderGantt(p, canEdit) {
+  const headers = ['#','Task','Owner','Start / Eq','End','Days','Deps'];
+  const w = state.tblWidths;
+  let thHtml = '<thead><tr>' + headers.map((h, i) => `<th style="width:${w[i]}px">${h}<div class="resizer" onmousedown="startColResize(event,${i})"></div></th>`).join('') + '</tr></thead>';
+  let tbHtml = '<tbody>' + p.tasks.map((t, i) => `<tr>
+    <td><div class="row-ops"><span>${i+1}</span>${canEdit ? `<button onclick="moveRow(${i},-1)">▲</button><button onclick="moveRow(${i},1)">▼</button>` : ''}</div></td>
+    <td><input ${canEdit?'':'disabled'} value="${esc(t.name)}" onchange="editCell(${i},'name',this.value)"></td>
+    <td><input ${canEdit?'':'disabled'} value="${esc(t.owner||'')}" onchange="editCell(${i},'owner',this.value)"></td>
+    <td><input ${canEdit?'':'disabled'} value="${esc(t.startFormula||t.start)}" onchange="editCell(${i},'startFormula',this.value)"></td>
+    <td style="color:#64748b;font-size:11px">${t.end}</td>
+    <td><input type="number" min="1" ${canEdit?'':'disabled'} value="${t.days}" onchange="editCell(${i},'days',this.value)"></td>
+    <td><input ${canEdit?'':'disabled'} value="${esc(t.deps||'')}" onchange="editCell(${i},'deps',this.value)"></td>
+  </tr>`).join('') + '</tbody>';
+  document.getElementById('gTable').innerHTML = thHtml + tbHtml;
 
   // Timeline bounds
-  let minD = new Date(), maxD = addDays(new Date(), 30);
-  if (p.tasks.length) {
-    minD = p.tasks.reduce((acc, t) => parseDMY(t.start) < acc ? parseDMY(t.start) : acc, parseDMY(p.tasks[0].start));
-    maxD = p.tasks.reduce((acc, t) => parseDMY(t.end) > acc ? parseDMY(t.end) : acc, parseDMY(p.tasks[0].end));
-  }
+  let minD = todayStr(), maxD = addDays(todayStr(), 28);
+  p.tasks.forEach(t => { if (t.start < minD) minD = t.start; if (t.end > maxD) maxD = t.end; });
   minD = addDays(minD, -3);
-  maxD = addDays(maxD, 14);
-  if (ganttScale === 'week') {
-    const day = minD.getDay();
-    const diff = (day === 0 ? -6 : 1 - day);
-    minD = addDays(minD, diff);
-  }
-
+  maxD = addDays(maxD, 10);
   const totalDays = Math.max(14, diffDays(minD, maxD) + 1);
-  const units = ganttScale === 'week' ? Math.ceil(totalDays / 7) : totalDays;
-  const pxPerDay = ganttScale === 'week' ? (colWidth / 7) : colWidth;
-  const totalWidth = units * colWidth;
 
-  let headHtml = `<div class="g-header-row" style="width:${totalWidth}px">`;
-  for (let u = 0; u < units; u++) {
-    const d = addDays(minD, ganttScale === 'week' ? u * 7 : u);
-    const isWknd = ganttScale === 'day' && (d.getDay() === 0 || d.getDay() === 6);
-    const label = ganttScale === 'week' ? ('W' + getISOWeek(d)) : `${d.getDate()}/${d.getMonth()+1}`;
-    headHtml += `<div class="g-col-head ${isWknd?'wknd':''}" style="width:${colWidth}px">${label}</div>`;
-  }
-  headHtml += `</div>`;
-
-  let bodyHtml = `<div class="g-body" style="width:${totalWidth}px; height:${Math.max(1, p.tasks.length)*38}px">`;
-  p.tasks.forEach(() => {
-    bodyHtml += `<div class="g-grid-row">`;
-    for (let u = 0; u < units; u++) {
-      const d = addDays(minD, ganttScale === 'week' ? u * 7 : u);
-      const isWknd = ganttScale === 'day' && (d.getDay() === 0 || d.getDay() === 6);
-      bodyHtml += `<div class="g-grid-cell ${isWknd?'wknd':''}" style="width:${colWidth}px"></div>`;
+  let cols = [];
+  if (state.scale === 'day') {
+    for (let d = 0; d < totalDays; d++) {
+      const ds = addDays(minD, d);
+      const dow = new Date(ds+'T00:00:00').getDay();
+      cols.push({ label: fmtDM(ds), wknd: (dow===0||dow===6), days: 1 });
     }
-    bodyHtml += `</div>`;
-  });
+  } else {
+    for (let d = 0; d < totalDays; d += 7) {
+      const ds = addDays(minD, d);
+      cols.push({ label: 'W ' + fmtDM(ds), wknd: false, days: 7 });
+    }
+  }
+  const pxPerDay = state.scale === 'day' ? state.colW : (state.colW / 7);
+  const tlW = Math.round(totalDays * pxPerDay);
 
-  const barCoords = {};
-  p.tasks.forEach((t, idx) => {
-    const s = parseDMY(t.start);
-    const e = parseDMY(t.end);
-    const leftPx = diffDays(minD, s) * pxPerDay;
-    const widthPx = Math.max(28, (diffDays(s, e) + 1) * pxPerDay);
-    const topPx = idx * 38 + 5;
-    barCoords[t.id] = { x1: leftPx, x2: leftPx + widthPx, y: idx * 38 + 19 };
-    const cc = getTaskColorClass(t);
-    bodyHtml += `<div class="g-bar c-${cc}" style="left:${leftPx}px; width:${widthPx}px; top:${topPx}px;" ondblclick="openTaskModal('${t.id}')">
-      <span class="bar-date">${formatDDMM(s)}</span>
-      <span class="bar-title">${esc(t.title)}</span>
-      <span class="bar-date">${formatDDMM(e)}</span>
+  let hdrCells = cols.map(c => `<div class="g-cell-hdr ${c.wknd?'wknd':''}" style="width:${c.days*pxPerDay}px">${c.label}</div>`).join('');
+  let rowsHtml = p.tasks.map((t, i) => {
+    const left = diffDays(minD, t.start) * pxPerDay;
+    const width = Math.max(22, t.days * pxPerDay);
+    const bgCells = cols.map(c => `<div class="g-grid-cell ${c.wknd?'wknd':''}" style="width:${c.days*pxPerDay}px"></div>`).join('');
+    return `<div class="g-row-bg">${bgCells}
+      <div class="g-bar" style="left:${left}px;width:${width}px;background:${getTaskColor(t)}" onmousedown="${canEdit?`startBarDrag(event,${i},'move',${pxPerDay})`:''}">
+        <span>${esc(t.name)} (${fmtDM(t.start)}-${fmtDM(t.end)})</span>
+        ${canEdit ? `<div class="handle-r" onmousedown="event.stopPropagation();startBarDrag(event,${i},'resize',${pxPerDay})"></div>` : ''}
+      </div>
     </div>`;
-  });
+  }).join('');
 
-  // Thin Dashed Dependency Arrows
-  let svgHtml = `<svg id="ganttSvg" width="${totalWidth}" height="${Math.max(1, p.tasks.length)*38}">
-    <defs><marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-      <path d="M0,0 L6,3 L0,6 Z" fill="#dc2626" />
-    </marker></defs>`;
-  p.tasks.forEach(t => {
-    const to = barCoords[t.id];
-    if (!to) return;
-    (t.deps || []).forEach(did => {
-      const from = barCoords[did];
-      if (!from) return;
-      const midX = from.x2 + 10;
-      const path = `M ${from.x2} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x1} ${to.y}`;
-      svgHtml += `<path d="${path}" fill="none" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow)" />`;
+  // Dependency SVG arrows
+  let svgLines = '';
+  p.tasks.forEach((t, toIdx) => {
+    const depNums = String(t.deps || '').split(',').map(s => parseInt(s.trim(),10)-1).filter(n => !isNaN(n) && p.tasks[n]);
+    depNums.forEach(fromIdx => {
+      const fromT = p.tasks[fromIdx];
+      const x1 = (diffDays(minD, fromT.end) + 1) * pxPerDay;
+      const y1 = 36 + fromIdx * 36 + 18;
+      const x2 = diffDays(minD, t.start) * pxPerDay;
+      const y2 = 36 + toIdx * 36 + 18;
+      const midX = x1 + 10;
+      svgLines += `<path d="M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}" fill="none" stroke="#dc2626" stroke-width="1.3" stroke-dasharray="3,3" marker-end="url(#arr)"/>`;
     });
   });
-  svgHtml += `</svg></div>`;
 
-  document.getElementById('ganttRight').innerHTML = headHtml + bodyHtml + svgHtml;
+  const tlH = 36 + p.tasks.length * 36 + 20;
+  document.getElementById('gTimeline').style.width = tlW + 'px';
+  document.getElementById('gTimeline').innerHTML = `
+    <div class="g-hdr-row">${hdrCells}</div>
+    ${rowsHtml}
+    <svg class="dep-svg" width="${tlW}" height="${tlH}">
+      <defs><marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#dc2626"/></marker></defs>
+      ${svgLines}
+    </svg>`;
 }
 
-function editCell(idx, field, val) {
-  const p = getProject();
-  const t = p.tasks[idx];
-  val = val.trim();
-  if (field === 'title') t.title = val || t.title;
-  else if (field === 'owner') t.owner = val;
-  else if (field === 'start') {
-    if (val.startsWith('=')) { t.formula = val; }
-    else { t.formula = ''; t.start = val; t.end = formatDMY(addDays(parseDMY(val), t.days - 1)); }
-  } else if (field === 'end') {
-    t.end = val;
-    t.days = Math.max(1, diffDays(parseDMY(t.start), parseDMY(val)) + 1);
-  } else if (field === 'days') {
-    t.days = Math.max(1, parseInt(val, 10) || 1);
-    t.end = formatDMY(addDays(parseDMY(t.start), t.days - 1));
-  } else if (field === 'deps') {
-    t.deps = val ? val.split(',').map(s => parseInt(s.trim(), 10) - 1).filter(i => i >= 0 && i < p.tasks.length && i !== idx).map(i => p.tasks[i].id) : [];
-  }
-  renderActiveView();
-  queueCloudSave(p);
+async function editCell(idx, field, val) {
+  const p = getCurProj();
+  if (!p || !isOwnerOf(p)) return;
+  p.tasks[idx][field] = field === 'days' ? Math.max(1, parseInt(val,10)||1) : val;
+  renderWorkspace();
+  await saveProjectToCloud(p);
+}
+
+async function moveRow(idx, dir) {
+  const p = getCurProj();
+  const ni = idx + dir;
+  if (!p || !isOwnerOf(p) || ni < 0 || ni >= p.tasks.length) return;
+  const mapIdx = i => i === idx ? ni : (i === ni ? idx : i);
+  p.tasks.forEach(t => {
+    if (t.startFormula && t.startFormula.startsWith('=')) {
+      t.startFormula = t.startFormula.replace(/^=(\d+)/, (_, n) => '=' + (mapIdx(parseInt(n,10)-1) + 1));
+    }
+    if (t.deps) {
+      t.deps = t.deps.split(',').map(s => {
+        const n = parseInt(s.trim(),10)-1;
+        return isNaN(n) ? s : String(mapIdx(n)+1);
+      }).join(',');
+    }
+  });
+  const tmp = p.tasks[idx]; p.tasks[idx] = p.tasks[ni]; p.tasks[ni] = tmp;
+  renderWorkspace();
+  await saveProjectToCloud(p);
 }
 
 function startColResize(e, colIdx) {
   e.preventDefault();
-  const startX = e.clientX;
-  const startW = colWidths[colIdx];
+  const startX = e.clientX, startW = state.tblWidths[colIdx];
   const onMove = ev => {
-    colWidths[colIdx] = Math.max(36, startW + (ev.clientX - startX));
-    renderGantt(getProject());
+    state.tblWidths[colIdx] = Math.max(36, startW + (ev.clientX - startX));
+    renderGantt(getCurProj(), isOwnerOf(getCurProj()));
   };
   const onUp = () => {
+    localStorage.setItem('pt_cols', JSON.stringify(state.tblWidths));
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
   };
@@ -906,160 +731,212 @@ function startColResize(e, colIdx) {
   window.addEventListener('mouseup', onUp);
 }
 
-function getISOWeek(d) {
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNum = date.getUTCDay() || 7;
-  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+function startBarDrag(e, idx, mode, pxPerDay) {
+  e.preventDefault();
+  const p = getCurProj(), t = p.tasks[idx];
+  const startX = e.clientX, origStart = t.start, origDays = t.days;
+  const onMove = ev => {
+    const dDays = Math.round((ev.clientX - startX) / pxPerDay);
+    if (mode === 'move') {
+      t.start = addDays(origStart, dDays);
+      t.startFormula = t.start;
+    } else {
+      t.days = Math.max(1, origDays + dDays);
+    }
+    recalcAll(p);
+    renderGantt(p, true);
+  };
+  const onUp = async () => {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    await saveProjectToCloud(p);
+  };
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
 }
 
-/* PERT Chart & Critical Path */
-function resetPertLayout() {
-  const p = getProject();
-  p.tasks.forEach(t => { delete t.px; delete t.py; });
-  renderPert(p);
-  queueCloudSave(p);
-}
+// PERT & CRITICAL PATH
+function renderPert(p, canEdit) {
+  const n = p.tasks.length;
+  const preds = p.tasks.map(t => String(t.deps||'').split(',').map(s=>parseInt(s.trim(),10)-1).filter(x=>!isNaN(x)&&x>=0&&x<n&&x!==p.tasks.indexOf(t)));
+  const succs = Array.from({length:n}, ()=>[]);
+  preds.forEach((ps, i) => ps.forEach(pr => succs[pr].push(i)));
 
-function renderPert(p) {
-  const canvas = document.getElementById('pertCanvas');
-  if (!p.tasks.length) { canvas.innerHTML = '<p style="padding:20px;color:var(--muted);">Add tasks to view PERT network.</p>'; return; }
-
-  // Compute ES, EF, LS, LF, Slack
-  const map = {};
-  p.tasks.forEach(t => map[t.id] = { t, es: 0, ef: t.days, ls: 0, lf: 0, slack: 0, stage: 0 });
-  for (let i = 0; i < p.tasks.length; i++) {
-    p.tasks.forEach(t => {
-      const n = map[t.id];
-      (t.deps || []).forEach(did => {
-        if (map[did]) {
-          n.es = Math.max(n.es, map[did].ef);
-          n.stage = Math.max(n.stage, map[did].stage + 1);
-        }
-      });
-      n.ef = n.es + (parseInt(t.days, 10) || 1);
-    });
+  const es = Array(n).fill(0), ef = Array(n).fill(0), stage = Array(n).fill(0);
+  for (let pass = 0; pass < n; pass++) {
+    for (let i = 0; i < n; i++) {
+      es[i] = preds[i].length ? Math.max(...preds[i].map(pr => ef[pr])) : 0;
+      ef[i] = es[i] + p.tasks[i].days;
+      stage[i] = preds[i].length ? Math.max(...preds[i].map(pr => stage[pr] + 1)) : 0;
+    }
   }
-  const projectEnd = Math.max(...Object.values(map).map(n => n.ef));
-  Object.values(map).forEach(n => { n.lf = projectEnd; n.ls = n.lf - (parseInt(n.t.days, 10) || 1); });
-  for (let i = 0; i < p.tasks.length; i++) {
-    p.tasks.forEach(t => {
-      (t.deps || []).forEach(did => {
-        if (map[did]) {
-          map[did].lf = Math.min(map[did].lf, map[t.id].ls);
-          map[did].ls = map[did].lf - (parseInt(map[did].t.days, 10) || 1);
-        }
-      });
-    });
+  const projEnd = Math.max(0, ...ef);
+  const lf = Array(n).fill(projEnd), ls = Array(n).fill(0);
+  for (let pass = 0; pass < n; pass++) {
+    for (let i = n - 1; i >= 0; i--) {
+      lf[i] = succs[i].length ? Math.min(...succs[i].map(sc => ls[sc])) : projEnd;
+      ls[i] = lf[i] - p.tasks[i].days;
+    }
   }
-  Object.values(map).forEach(n => { n.slack = n.ls - n.es; });
 
+  p.pertPos = p.pertPos || {};
   const stageCounts = {};
-  let html = '';
-  p.tasks.forEach(t => {
-    const n = map[t.id];
-    const rowInStage = stageCounts[n.stage] || 0;
-    stageCounts[n.stage] = rowInStage + 1;
-    const x = t.px !== undefined ? t.px : (30 + n.stage * 260);
-    const y = t.py !== undefined ? t.py : (30 + rowInStage * 115);
-    t.px = x; t.py = y;
-    const isCrit = n.slack === 0;
-    html += `<div class="pert-node ${isCrit ? 'critical' : ''}" id="pnode_${t.id}" style="left:${x}px; top:${y}px;" onmousedown="dragPertNode(event,'${t.id}')">
-      <div class="pert-node-title">${esc(t.title)}</div>
-      <div class="pert-node-sub"><span>Dur: ${t.days}d</span><span>Slack: ${n.slack}d</span></div>
-      <div class="pert-node-sub" style="margin-top:3px;"><span>ES:${n.es} EF:${n.ef}</span><span>${t.start}</span></div>
+  p.tasks.forEach((t, i) => {
+    if (!p.pertPos[t.id]) {
+      const s = stage[i];
+      const rowInStage = stageCounts[s] || 0;
+      stageCounts[s] = rowInStage + 1;
+      p.pertPos[t.id] = { x: 40 + s * 250, y: 40 + rowInStage * 135 };
+    }
+  });
+
+  let arrows = '';
+  preds.forEach((ps, toI) => ps.forEach(fromI => {
+    const p1 = p.pertPos[p.tasks[fromI].id], p2 = p.pertPos[p.tasks[toI].id];
+    const crit = (ls[fromI] - es[fromI] === 0) && (ls[toI] - es[toI] === 0);
+    arrows += `<line x1="${p1.x+190}" y1="${p1.y+45}" x2="${p2.x}" y2="${p2.y+45}" stroke="${crit?'#dc2626':'#64748b'}" stroke-width="${crit?2.2:1.4}" marker-end="url(#pArr${crit?'C':''})"/>`;
+  }));
+
+  const nodesHtml = p.tasks.map((t, i) => {
+    const pos = p.pertPos[t.id];
+    const slack = ls[i] - es[i];
+    const crit = slack === 0;
+    return `<div class="p-node ${crit?'crit':''}" style="left:${pos.x}px;top:${pos.y}px" onmousedown="startPertDrag(event,'${t.id}')">
+      <div class="p-node-hdr"><span>#${i+1} ${esc(t.name)}</span>${crit?'<span class="p-crit-badge">CRIT</span>':''}</div>
+      <div style="color:#64748b">👤 ${esc(t.owner||'-')} • <b>${t.days}d</b></div>
+      <div class="p-grid"><span>ES: ${es[i]} | EF: ${ef[i]}</span><span>Slack: ${slack}d</span></div>
     </div>`;
-  });
+  }).join('');
 
-  canvas.innerHTML = `<svg id="pertSvg" width="2400" height="1600">
-    <defs><marker id="parrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#64748b"/></marker>
-    <marker id="parrowCrit" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#dc2626"/></marker></defs>
-  </svg>` + html;
-  drawPertLines(p, map);
+  document.getElementById('pertCanvas').innerHTML = `
+    <svg width="2200" height="1200" style="position:absolute;inset:0;pointer-events:none">
+      <defs>
+        <marker id="pArr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#64748b"/></marker>
+        <marker id="pArrC" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#dc2626"/></marker>
+      </defs>
+      ${arrows}
+    </svg>${nodesHtml}`;
 }
 
-function drawPertLines(p, map) {
-  const svg = document.getElementById('pertSvg');
-  if (!svg) return;
-  let paths = svg.querySelector('defs').outerHTML;
-  p.tasks.forEach(t => {
-    (t.deps || []).forEach(did => {
-      const from = p.tasks.find(x => x.id === did);
-      if (!from) return;
-      const x1 = from.px + 210, y1 = from.py + 35;
-      const x2 = t.px, y2 = t.py + 35;
-      const isCrit = map && map[t.id]?.slack === 0 && map[did]?.slack === 0;
-      paths += `<path d="M ${x1} ${y1} C ${x1+40} ${y1}, ${x2-40} ${y2}, ${x2} ${y2}" fill="none" stroke="${isCrit?'#dc2626':'#64748b'}" stroke-width="${isCrit?2:1.4}" marker-end="url(#${isCrit?'parrowCrit':'parrow'})" />`;
-    });
-  });
-  svg.innerHTML = paths;
-}
-
-function dragPertNode(e, tid) {
-  const p = getProject();
-  const t = p.tasks.find(x => x.id === tid);
-  const el = document.getElementById('pnode_' + tid);
-  const startX = e.clientX - t.px, startY = e.clientY - t.py;
+function startPertDrag(e, tid) {
+  e.preventDefault();
+  const p = getCurProj(), pos = p.pertPos[tid];
+  const sx = e.clientX, sy = e.clientY, ox = pos.x, oy = pos.y;
   const onMove = ev => {
-    t.px = Math.max(10, ev.clientX - startX);
-    t.py = Math.max(10, ev.clientY - startY);
-    el.style.left = t.px + 'px';
-    el.style.top = t.py + 'px';
-    drawPertLines(p, null);
+    pos.x = Math.max(10, ox + (ev.clientX - sx));
+    pos.y = Math.max(10, oy + (ev.clientY - sy));
+    renderPert(p, isOwnerOf(p));
   };
-  const onUp = () => {
+  const onUp = async () => {
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
-    queueCloudSave(p);
+    if (isOwnerOf(p)) await saveProjectToCloud(p);
   };
   window.addEventListener('mousemove', onMove);
   window.addEventListener('mouseup', onUp);
 }
 
-/* Export & Import */
-function exportJSON() {
-  const blob = new Blob([JSON.stringify(projects, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `projects_${currentUser}.json`;
-  a.click();
-}
-
-function importJSON(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try {
-      const imported = JSON.parse(ev.target.result);
-      if (Array.isArray(imported)) {
-        imported.forEach(proj => {
-          proj.id = 'proj_' + Date.now() + '_' + Math.floor(Math.random()*1000);
-          projects.unshift(proj);
-          queueCloudSave(proj);
-        });
-        renderDashboard();
-      }
-    } catch (err) { alert('Invalid JSON file.'); }
-  };
-  reader.readAsText(file);
-}
-
-function exportCSV() {
-  const p = getProject();
+async function resetPertLayout() {
+  const p = getCurProj();
   if (!p) return;
-  const rows = [['Row', 'Task', 'Owner', 'Status', 'Start', 'End', 'Days', 'Formula']];
-  p.tasks.forEach((t, i) => rows.push([i+1, `"${t.title.replace(/"/g,'""')}"`, t.owner, t.status, t.start, t.end, t.days, t.formula || '']));
-  const blob = new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `${p.name.replace(/\s+/g,'_')}.csv`;
-  a.click();
+  p.pertPos = {};
+  renderPert(p, isOwnerOf(p));
+  if (isOwnerOf(p)) await saveProjectToCloud(p);
 }
 
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// TASK MODAL
+function openTaskModal(tid) {
+  const p = getCurProj();
+  if (!p || !isOwnerOf(p)) return;
+  const t = tid ? p.tasks.find(x => x.id === tid) : null;
+  document.getElementById('editTaskId').value = tid || '';
+  document.getElementById('tModalTitle').textContent = t ? 'Edit Task' : 'Add Task';
+  document.getElementById('tName').value = t ? t.name : '';
+  document.getElementById('tOwner').value = t ? (t.owner||'') : state.owner;
+  document.getElementById('tStatus').value = t ? t.status : 'todo';
+  document.getElementById('tStart').value = t ? (t.startFormula || t.start) : todayStr();
+  document.getElementById('tDays').value = t ? t.days : 3;
+  document.getElementById('tDeps').value = t ? (t.deps || '') : '';
+  document.getElementById('delTaskBtn').classList.toggle('hidden', !t);
+  document.getElementById('taskModal').classList.remove('hidden');
+}
+
+async function saveTaskModal() {
+  const p = getCurProj();
+  const tid = document.getElementById('editTaskId').value;
+  const name = document.getElementById('tName').value.trim();
+  if (!name) { alert('Enter a task name'); return; }
+  const obj = {
+    id: tid || ('t_' + Date.now()),
+    name,
+    owner: document.getElementById('tOwner').value.trim(),
+    status: document.getElementById('tStatus').value,
+    startFormula: document.getElementById('tStart').value.trim() || todayStr(),
+    start: todayStr(),
+    days: Math.max(1, parseInt(document.getElementById('tDays').value,10) || 1),
+    deps: document.getElementById('tDeps').value.trim()
+  };
+  if (obj.status === 'done') obj.completedDate = todayStr();
+  if (tid) {
+    const i = p.tasks.findIndex(x => x.id === tid);
+    if (i >= 0) p.tasks[i] = { ...p.tasks[i], ...obj };
+  } else {
+    p.tasks.push(obj);
+  }
+  closeModal('taskModal');
+  renderWorkspace();
+  await saveProjectToCloud(p);
+}
+
+async function deleteTask() {
+  const p = getCurProj(), tid = document.getElementById('editTaskId').value;
+  p.tasks = p.tasks.filter(x => x.id !== tid);
+  closeModal('taskModal');
+  renderWorkspace();
+  await saveProjectToCloud(p);
+}
+
+// EXPORT / IMPORT
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(state.projects, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `projects_${state.owner || 'team'}.json`; a.click();
+}
+function importJSON(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = async () => {
+    try {
+      const arr = JSON.parse(r.result);
+      if (!Array.isArray(arr)) throw new Error('Invalid JSON');
+      for (const item of arr) {
+        item.id = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+        item.owner = state.owner;
+        state.projects.unshift(item);
+        await saveProjectToCloud(item);
+      }
+      renderDashboard();
+    } catch (err) { alert('Invalid JSON backup file'); }
+  };
+  r.readAsText(file);
+}
+function exportCSV() {
+  const p = getCurProj(); if (!p) return;
+  const rows = [['Row','Task','Owner','Status','Start','End','Days','DependsOn']];
+  p.tasks.forEach((t, i) => rows.push([i+1, `"${(t.name||'').replace(/"/g,'""')}"`, t.owner||'', t.status, t.start, t.end, t.days, `"${t.deps||''}"`]));
+  const blob = new Blob([rows.map(r=>r.join(',')).join('\n')], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `${p.name.replace(/\s+/g,'_')}.csv`; a.click();
+}
+function esc(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+// INIT
+updateHeaderUI();
+if (state.owner) {
+  closeModal('authModal');
+  loadProjects();
+} else {
+  loadProjects();
 }
 </script>
 </body>
