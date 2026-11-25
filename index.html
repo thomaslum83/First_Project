@@ -511,8 +511,11 @@ function recalcAll(proj) {
           if (!t.deps) t.deps = String(refIdx + 1);
         }
       } else if (/^\d{4}-\d{2}-\d{2}$/.test(f)) {
-        t.start = f;
-      }
+  t.start = f;
+} else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(f)) {
+  const [d, mo, y] = f.split('/');
+  t.start = `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
       t.days = Math.max(1, parseInt(t.days, 10) || 1);
       t.end = addDays(t.start, t.days);
     });
