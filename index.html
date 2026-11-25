@@ -496,29 +496,7 @@ function backToDash() {
 }
 
 function getCurProj() { return state.projects.find(x => x.id === state.curId); }
-function parseDate(s) {
-  if (!s) return new Date(Date.UTC(2026, 0, 1));
-  const str = String(s).trim();
-  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
-    const [d, m, y] = str.split('/').map(Number);
-    return new Date(Date.UTC(y, m - 1, d));
-  }
-  const [y, m, d] = str.split('-').map(Number);
-  return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
-}
 
-function fmtDate(dt) {
-  const y = dt.getUTCFullYear();
-  const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
-  const d = String(dt.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function addDays(dateStr, days) {
-  const dt = parseDate(dateStr);
-  dt.setUTCDate(dt.getUTCDate() + (parseInt(days, 10) || 0));
-  return fmtDate(dt);
-}
 function recalcAll(proj) {
   const tasks = proj.tasks;
   for (let pass = 0; pass < tasks.length + 1; pass++) {
